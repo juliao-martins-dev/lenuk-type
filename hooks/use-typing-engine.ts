@@ -14,6 +14,10 @@ function isEditableTarget(target: EventTarget | null) {
   return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || tagName === "BUTTON";
 }
 
+function isTypingInputKey(key: string) {
+  return key.length === 1 || key === "Enter";
+}
+
 export function useTypingEngine(
   text: string = DEFAULT_TEXT,
   duration: DurationSeconds = 30,
@@ -23,12 +27,16 @@ export function useTypingEngine(
 
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
 
+  useEffect(() => () => engine.dispose(), [engine]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!enabled) return;
+      if (event.defaultPrevented || event.isComposing) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === "Tab") return;
       if (isEditableTarget(event.target)) return;
+      if (!isTypingInputKey(event.key)) return;
       event.preventDefault();
       engine.handleKey(event.key === "Enter" ? "\n" : event.key);
     };

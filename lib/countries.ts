@@ -1,8 +1,6 @@
 export interface CountryOption {
   code: string;
   name: string;
-  flag: string;
-  label: string;
 }
 
 type IntlWithSupportedValuesOf = typeof Intl & {
@@ -95,21 +93,37 @@ function buildCountryOptions(): CountryOption[] {
   return uniqueCodes
     .map((code) => {
       const name = countryName(code);
-      const flag = countryFlag(code);
 
       return {
         code,
-        name,
-        flag,
-        label: flag ? `${flag} ${name}` : name
+        name
       };
     })
     .filter((option) => option.name && option.name !== option.code)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export const COUNTRY_OPTIONS = buildCountryOptions();
-export const COUNTRY_CODE_SET = new Set(COUNTRY_OPTIONS.map((option) => option.code));
+let countryOptionsCache: CountryOption[] | null = null;
+let countryCodeSetCache: Set<string> | null = null;
+
+export function getCountryOptions() {
+  if (!countryOptionsCache) {
+    countryOptionsCache = buildCountryOptions();
+  }
+
+  return countryOptionsCache;
+}
+
+export function isSupportedCountryCode(code: string) {
+  const normalized = normalizeCountryCode(code);
+  if (!isCountryCode(normalized)) return false;
+
+  if (!countryCodeSetCache) {
+    countryCodeSetCache = new Set(getCountryOptions().map((option) => option.code));
+  }
+
+  return countryCodeSetCache.has(normalized);
+}
 
 export function countryLabel(code: string) {
   const normalized = normalizeCountryCode(code);

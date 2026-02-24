@@ -58,9 +58,10 @@ export function CountryPicker({
     document.addEventListener("touchstart", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
 
-    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    const focusTimer = window.setTimeout(() => searchInputRef.current?.focus(), 0);
 
     return () => {
+      window.clearTimeout(focusTimer);
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("touchstart", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
@@ -78,9 +79,13 @@ export function CountryPicker({
       <button
         type="button"
         className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (options.length === 0) return;
+          setOpen((prev) => !prev);
+        }}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={options.length === 0}
       >
         <span className="flex min-w-0 items-center gap-2">
           {selected ? (
@@ -91,7 +96,7 @@ export function CountryPicker({
               </span>
             </>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            <span className="text-muted-foreground">{options.length === 0 ? "Loading countries..." : placeholder}</span>
           )}
         </span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />

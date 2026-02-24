@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getResultsFromSheetDB, postResultToSheetDB, type TypingResultRow } from "@/lib/sheetdb";
 
+export const runtime = "nodejs";
+
 const REQUIRED_FIELDS = ["userId", "mode", "difficulty", "durationSeconds", "wpm", "rawWpm", "accuracy", "errors", "promptId"];
 
 function toNumber(value: unknown, fallback = 0) {
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
     const result = await postResultToSheetDB(row);
     return NextResponse.json({ success: true, row, sheetdb: result });
   } catch (error) {
+    console.error("POST /api/results failed", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
   }
 }
@@ -94,6 +97,7 @@ export async function GET() {
 
     return NextResponse.json({ results: normalized });
   } catch (error) {
+    console.error("GET /api/results failed", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
   }
 }

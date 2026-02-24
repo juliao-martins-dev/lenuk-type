@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { COUNTRY_CODE_SET, COUNTRY_OPTIONS } from "@/lib/countries";
+import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds } from "@/lib/engine/typing-engine";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 
@@ -61,12 +61,17 @@ export default function HomePage() {
   const [userCountry, setUserCountry] = useState("");
   const [draftName, setDraftName] = useState("");
   const [draftCountry, setDraftCountry] = useState("");
+  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
   const submittedRef = useRef(false);
+  const celebrationTimeoutRef = useRef<number | null>(null);
 
   const currentText = useMemo(() => SAMPLE_TEXTS[mode], [mode]);
   const promptId = useMemo(() => `prompt-${mode}-${currentText.length}`, [mode, currentText]);
-  const { snapshot, restart } = useTypingEngine(currentText, duration, Boolean(userName && userCountry));
+  const onboardingComplete = Boolean(userName && userCountry);
+  const isDraftCountryValid = onboardingComplete ? true : isSupportedCountryCode(draftCountry);
+  const { snapshot, restart } = useTypingEngine(currentText, duration, onboardingComplete);
+  const textCharacters = useMemo(() => Array.from(snapshot.text), [snapshot.text]);
 
   useEffect(() => {
     const existingName = getUserName();
@@ -79,6 +84,11 @@ export default function HomePage() {
       setUserCountry(existingCountry);
       setDraftCountry(existingCountry);
     }
+    if (!existingName || !existingCountry) {
+      startTransition(() => {
+        setCountryOptions(getCountryOptions());
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -87,7 +97,8 @@ export default function HomePage() {
     submittedRef.current = true;
     setSaveStatus("saving");
     setShowCelebration(true);
-    window.setTimeout(() => setShowCelebration(false), 2400);
+    if (celebrationTimeoutRef.current) window.clearTimeout(celebrationTimeoutRef.current);
+    celebrationTimeoutRef.current = window.setTimeout(() => setShowCelebration(false), 2400);
 
     const payload = {
       userId: getOrCreateUserId(),
@@ -120,6 +131,12 @@ export default function HomePage() {
       .catch(() => setSaveStatus("error"));
   }, [difficulty, duration, mode, promptId, snapshot.metrics, userCountry, userName]);
 
+  useEffect(() => {
+    return () => {
+      if (celebrationTimeoutRef.current) window.clearTimeout(celebrationTimeoutRef.current);
+    };
+  }, []);
+
   const handleRestart = (nextDuration?: DurationSeconds) => {
     submittedRef.current = false;
     setSaveStatus("idle");
@@ -129,7 +146,7 @@ export default function HomePage() {
   const saveProfile = () => {
     const nextName = draftName.trim();
     const nextCountry = draftCountry.trim().toUpperCase();
-    if (!nextName || !COUNTRY_CODE_SET.has(nextCountry)) return;
+    if (!nextName || !isSupportedCountryCode(nextCountry)) return;
     localStorage.setItem("lenuk-user-name", nextName);
     localStorage.setItem("lenuk-user-country", nextCountry);
     getOrCreateUserId();
@@ -159,11 +176,11 @@ export default function HomePage() {
                   if (event.key === "Enter") saveProfile();
                 }}
               />
-              <CountryPicker value={draftCountry} options={COUNTRY_OPTIONS} onChange={setDraftCountry} />
+              <CountryPicker value={draftCountry} options={countryOptions} onChange={setDraftCountry} />
               <Button
                 onClick={saveProfile}
                 className="w-full"
-                disabled={!draftName.trim() || !COUNTRY_CODE_SET.has(draftCountry.toUpperCase())}
+                disabled={!draftName.trim() || !isDraftCountryValid || countryOptions.length === 0}
               >
                 Save profile and start
               </Button>
@@ -228,7 +245,7 @@ export default function HomePage() {
             <Progress value={snapshot.metrics.progress} />
 
             <section className="rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide">
-              {snapshot.text.split("").map((character, index) => {
+              {textCharacters.map((character, index) => {
                 const status = snapshot.statuses[index];
                 const active = index === snapshot.index;
 
@@ -272,7 +289,7 @@ function CelebrationOverlay({ name }: { name: string }) {
     <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
       <div className="absolute inset-0 bg-primary/10" />
       <div className="absolute left-1/2 top-1/3 -translate-x-1/2 text-center">
-        <p className="text-3xl font-bold">🔥 Amazing, {name}! 👏</p>
+        <p className="text-3xl font-bold">Amazing, {name}!</p>
         <p className="mt-2 text-sm text-muted-foreground">You finished the run!</p>
       </div>
       {Array.from({ length: 24 }).map((_, index) => (

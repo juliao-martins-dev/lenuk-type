@@ -28,26 +28,47 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let active = true;
+    let inFlight = false;
+    let activeController: AbortController | null = null;
 
     async function load() {
+      if (inFlight) return;
+      if (document.visibilityState === "hidden") return;
+      inFlight = true;
+      activeController?.abort();
+      activeController = new AbortController();
       try {
-        const response = await fetch("/api/results", { cache: "no-store" });
+        const response = await fetch("/api/results", {
+          cache: "no-store",
+          signal: activeController.signal
+        });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "failed");
         if (active) {
           setItems(data.results ?? []);
           setStatus("live");
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
         if (active) setStatus("error");
+      } finally {
+        inFlight = false;
       }
     }
 
     load();
     const id = setInterval(load, 5000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       active = false;
+      activeController?.abort();
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 

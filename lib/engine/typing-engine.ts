@@ -54,6 +54,12 @@ export class TypingEngine {
     for (const listener of this.listeners) listener();
   }
 
+  dispose() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.listeners.clear();
+  }
+
   private computeSnapshot(): EngineSnapshot {
     const elapsedMs = this.started ? Date.now() - this.startedAt : 0;
     const elapsed = Math.min(this.duration, elapsedMs / 1000);
