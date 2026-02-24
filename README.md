@@ -20,7 +20,6 @@ AI-assisted typing game built with Next.js App Router and TypeScript.
 - ⏳ AI challenge generation route
 - ⏳ Results persistence + leaderboard routes
 
-
 ## Vercel deploy note (Next.js CVE block)
 
 If Vercel reports `Vulnerable version of Next.js detected`, ensure:
