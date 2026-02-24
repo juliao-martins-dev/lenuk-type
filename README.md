@@ -34,3 +34,9 @@ If Vercel reports `Vulnerable version of Next.js detected`, ensure:
 - `POST /api/results`: validates and saves finished runs to SheetDB server-side.
 - `GET /api/results`: fetches latest rows from SheetDB, sorts by WPM desc, returns top 50.
 - `GET /leaderboard`: live leaderboard page that auto-refreshes every 5 seconds.
+
+## UX additions
+
+- first-visit name prompt (stored in localStorage)
+- persistent player chip with user icon on top bar
+- finish celebration overlay with firework/clap effects

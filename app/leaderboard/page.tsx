@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface LeaderboardItem {
   id: string;
   createdAt: string;
   userId: string;
+  userName: string;
   mode: string;
   difficulty: string;
   durationSeconds: number;
@@ -54,7 +56,9 @@ export default function LeaderboardPage() {
             <h1 className="text-2xl font-semibold">Live Leaderboard</h1>
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">Status: {status}</p>
-              <Link href="/" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Back to typing</Link>
+              <Link href="/" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                Back to typing
+              </Link>
             </div>
           </div>
 
@@ -63,7 +67,7 @@ export default function LeaderboardPage() {
               <thead className="bg-muted/30">
                 <tr>
                   <Th>#</Th>
-                  <Th>User</Th>
+                  <Th>Player</Th>
                   <Th>WPM</Th>
                   <Th>Raw</Th>
                   <Th>Accuracy</Th>
@@ -78,7 +82,12 @@ export default function LeaderboardPage() {
                 {items.map((item, index) => (
                   <tr key={item.id} className="border-t">
                     <Td>{index + 1}</Td>
-                    <Td>{item.userId}</Td>
+                    <Td>
+                      <span className="inline-flex items-center gap-2">
+                        <User className="h-4 w-4 text-primary" />
+                        {item.userName || item.userId}
+                      </span>
+                    </Td>
                     <Td>{item.wpm}</Td>
                     <Td>{item.rawWpm}</Td>
                     <Td>{item.accuracy}%</Td>

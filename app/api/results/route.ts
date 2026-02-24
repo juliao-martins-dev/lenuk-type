@@ -45,14 +45,26 @@ export async function GET() {
   try {
     const results = await getResultsFromSheetDB();
     const normalized = (Array.isArray(results) ? results : [])
-      .map((entry) => ({
-        ...entry,
-        wpm: toNumber(entry.wpm),
-        rawWpm: toNumber(entry.rawWpm),
-        accuracy: toNumber(entry.accuracy),
-        errors: toNumber(entry.errors),
-        durationSeconds: toNumber(entry.durationSeconds)
-      }))
+      .map((entry) => {
+        let metadataObj: Record<string, unknown> = {};
+        if (typeof entry.metadata === "string" && entry.metadata.trim()) {
+          try {
+            metadataObj = JSON.parse(entry.metadata);
+          } catch {
+            metadataObj = {};
+          }
+        }
+
+        return {
+          ...entry,
+          userName: typeof metadataObj.userName === "string" ? metadataObj.userName : entry.userId,
+          wpm: toNumber(entry.wpm),
+          rawWpm: toNumber(entry.rawWpm),
+          accuracy: toNumber(entry.accuracy),
+          errors: toNumber(entry.errors),
+          durationSeconds: toNumber(entry.durationSeconds)
+        };
+      })
       .sort((a, b) => b.wpm - a.wpm)
       .slice(0, 50);
 

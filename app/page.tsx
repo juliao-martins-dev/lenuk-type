@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -38,11 +39,19 @@ function getOrCreateUserId() {
   return created;
 }
 
+function getUserName() {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("lenuk-user-name") ?? "";
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState("easy");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [userName, setUserName] = useState("");
+  const [draftName, setDraftName] = useState("");
+  const [showCelebration, setShowCelebration] = useState(false);
   const submittedRef = useRef(false);
 
   const currentText = useMemo(() => SAMPLE_TEXTS[mode], [mode]);
@@ -50,13 +59,23 @@ export default function HomePage() {
   const { snapshot, restart } = useTypingEngine(currentText, duration);
 
   useEffect(() => {
-    if (!snapshot.metrics.finished || submittedRef.current) return;
+    const existingName = getUserName();
+    if (existingName) {
+      setUserName(existingName);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!snapshot.metrics.finished || submittedRef.current || !userName) return;
 
     submittedRef.current = true;
     setSaveStatus("saving");
+    setShowCelebration(true);
+    window.setTimeout(() => setShowCelebration(false), 2400);
 
     const payload = {
       userId: getOrCreateUserId(),
+      userName,
       mode,
       difficulty,
       durationSeconds: duration,
@@ -66,6 +85,7 @@ export default function HomePage() {
       errors: snapshot.metrics.errors,
       promptId,
       metadata: {
+        userName,
         correctChars: snapshot.metrics.correctChars,
         typedChars: snapshot.metrics.typedChars,
         elapsed: snapshot.metrics.elapsed
@@ -82,99 +102,162 @@ export default function HomePage() {
         setSaveStatus("saved");
       })
       .catch(() => setSaveStatus("error"));
-  }, [difficulty, duration, mode, promptId, snapshot.metrics]);
+  }, [difficulty, duration, mode, promptId, snapshot.metrics, userName]);
 
   const handleRestart = (nextDuration?: DurationSeconds) => {
     submittedRef.current = false;
     setSaveStatus("idle");
     restart(nextDuration ?? duration);
   };
+  
+  const saveName = () => {
+    const nextName = draftName.trim();
+    if (!nextName) return;
+    localStorage.setItem("lenuk-user-name", nextName);
+    getOrCreateUserId();
+    setUserName(nextName);
+  };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center px-4 py-10">
-      <Card className="w-full">
-        <CardContent className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Tabs
-              value={mode}
-              onValueChange={(next) => {
-                setMode(next as "text" | "code");
-                handleRestart(duration);
-              }}
-              options={[
-                { label: "Text", value: "text" },
-                { label: "Code", value: "code" }
-              ]}
-            />
-            <div className="flex items-center gap-2">
-              <Select
-                value={difficulty}
-                options={difficultyOptions}
-                onChange={(event) => {
-                  setDifficulty(event.target.value);
+    <>
+      {showCelebration && <CelebrationOverlay name={userName} />}
+
+      {!userName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="space-y-4 p-6">
+              <h2 className="text-xl font-semibold">Welcome to Lenuk Type</h2>
+              <p className="text-sm text-muted-foreground">Enter your name once to start. Next visits will remember you.</p>
+              <input
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                placeholder="Your name"
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-ring focus:ring-2"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") saveName();
+                }}
+              />
+              <Button onClick={saveName} className="w-full">
+                Start typing
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center px-4 py-10">
+        <Card className="w-full">
+          <CardContent className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm">
+                <User className="h-4 w-4 text-primary" />
+                <span>{userName || "Guest"}</span>
+              </div>
+
+              <Tabs
+                value={mode}
+                onValueChange={(next) => {
+                  setMode(next as "text" | "code");
                   handleRestart(duration);
                 }}
+                options={[
+                  { label: "Text", value: "text" },
+                  { label: "Code", value: "code" }
+                ]}
               />
-              <Select
-                value={String(duration)}
-                options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
-                onChange={(event) => {
-                  const next = Number(event.target.value) as DurationSeconds;
-                  setDuration(next);
-                  handleRestart(next);
-                }}
-              />
-              <Tooltip text="Restart">
-                <Button variant="ghost" onClick={() => handleRestart(duration)}>
-                  Restart
-                </Button>
-              </Tooltip>
-              <Link href="/leaderboard" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                Leaderboard
-              </Link>
-            </div>
-          </div>
-
-          <Progress value={snapshot.metrics.progress} />
-
-          <section className="rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide">
-            {snapshot.text.split("").map((character, index) => {
-              const status = snapshot.statuses[index];
-              const active = index === snapshot.index;
-
-              return (
-                <span
-                  key={`${character}-${index}`}
-                  className={
-                    active
-                      ? "rounded bg-primary/20 text-foreground"
-                      : status === 1
-                        ? "text-foreground"
-                        : status === -1
-                          ? "text-destructive"
-                          : "text-muted-foreground"
-                  }
+              <div className="flex items-center gap-2">
+                <Select
+                  value={difficulty}
+                  options={difficultyOptions}
+                  onChange={(event) => {
+                    setDifficulty(event.target.value);
+                    handleRestart(duration);
+                  }}
+                />
+                <Select
+                  value={String(duration)}
+                  options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
+                  onChange={(event) => {
+                    const next = Number(event.target.value) as DurationSeconds;
+                    setDuration(next);
+                    handleRestart(next);
+                  }}
+                />
+                <Tooltip text="Restart">
+                  <Button variant="ghost" onClick={() => handleRestart(duration)}>
+                    Restart
+                  </Button>
+                </Tooltip>
+                <Link
+                  href="/leaderboard"
+                  className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
-                  {character}
-                </span>
-              );
-            })}
-          </section>
+                  Leaderboard
+                </Link>
+              </div>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Stat label="WPM" value={snapshot.metrics.wpm} />
-            <Stat label="Raw" value={snapshot.metrics.rawWpm} />
-            <Stat label="Accuracy" value={`${snapshot.metrics.accuracy}%`} />
-            <Stat label="Errors" value={snapshot.metrics.errors} />
-            <Stat label="Time" value={`${Math.ceil(snapshot.metrics.timeLeft)}s`} />
-          </div>
-          
-          <p className="text-sm text-muted-foreground">
-            Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
-          </p>
-        </CardContent>
-      </Card>
-    </main>
+            <Progress value={snapshot.metrics.progress} />
+
+            <section className="rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide">
+              {snapshot.text.split("").map((character, index) => {
+                const status = snapshot.statuses[index];
+                const active = index === snapshot.index;
+
+                return (
+                  <span
+                    key={`${character}-${index}`}
+                    className={
+                      active
+                        ? "rounded bg-primary/20 text-foreground"
+                        : status === 1
+                          ? "text-foreground"
+                          : status === -1
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                    }
+                  >
+                    {character}
+                  </span>
+                );
+              })}
+            </section>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              <Stat label="WPM" value={snapshot.metrics.wpm} />
+              <Stat label="Raw" value={snapshot.metrics.rawWpm} />
+              <Stat label="Accuracy" value={`${snapshot.metrics.accuracy}%`} />
+              <Stat label="Errors" value={snapshot.metrics.errors} />
+              <Stat label="Time" value={`${Math.ceil(snapshot.metrics.timeLeft)}s`} />
+            </div>
+
+            <p className="text-sm text-muted-foreground">Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}</p>
+          </CardContent>
+        </Card>
+      </main>
+    </>
+  );
+}
+
+function CelebrationOverlay({ name }: { name: string }) {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+      <div className="absolute inset-0 bg-primary/10" />
+      <div className="absolute left-1/2 top-1/3 -translate-x-1/2 text-center">
+        <p className="text-3xl font-bold">🔥 Amazing, {name}! 👏</p>
+        <p className="mt-2 text-sm text-muted-foreground">You finished the run!</p>
+      </div>
+      {Array.from({ length: 24 }).map((_, index) => (
+        <span
+          key={index}
+          className="firework-dot"
+          style={{
+            left: `${(index % 8) * 12 + 6}%`,
+            animationDelay: `${(index % 6) * 0.08}s`
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
