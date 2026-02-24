@@ -168,7 +168,7 @@ export default function HomePage() {
             <Stat label="Errors" value={snapshot.metrics.errors} />
             <Stat label="Time" value={`${Math.ceil(snapshot.metrics.timeLeft)}s`} />
           </div>
-
+          
           <p className="text-sm text-muted-foreground">
             Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
           </p>
