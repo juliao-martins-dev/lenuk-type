@@ -17,7 +17,8 @@ import { useTypingEngine } from "@/hooks/use-typing-engine";
 
 const SAMPLE_TEXTS: Record<string, string> = {
   text: "Refactoring in small steps keeps software stable and lets teams move quickly with confidence.",
-  code: "const result = values.filter(Boolean).map((item) => item.trim()).join(' ');"
+  code:
+    "function formatValues(values) {\n  return values\n    .filter(Boolean)\n    .map((item) => item.trim())\n    .join(\" \");\n}"
 };
 
 const durationOptions: Array<{ label: string; value: DurationSeconds }> = [
@@ -277,7 +278,13 @@ export default function HomePage() {
 
             <Progress value={snapshot.metrics.progress} />
 
-            <section className="rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide">
+            <section
+              className={
+                mode === "code"
+                  ? "overflow-auto rounded-lg border bg-background/40 p-4 font-mono text-sm leading-6 tracking-normal whitespace-pre [tab-size:2]"
+                  : "rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide"
+              }
+            >
               {textCharacters.map((character, index) => {
                 const status = snapshot.statuses[index];
                 const active = index === snapshot.index;
