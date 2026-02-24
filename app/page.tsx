@@ -63,14 +63,18 @@ export default function HomePage() {
   const [draftCountry, setDraftCountry] = useState("");
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const submittedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
 
   const currentText = useMemo(() => SAMPLE_TEXTS[mode], [mode]);
   const promptId = useMemo(() => `prompt-${mode}-${currentText.length}`, [mode, currentText]);
   const onboardingComplete = Boolean(userName && userCountry);
-  const isDraftCountryValid = onboardingComplete ? true : isSupportedCountryCode(draftCountry);
-  const { snapshot, restart } = useTypingEngine(currentText, duration, onboardingComplete);
+  const requiresOnboarding = !onboardingComplete;
+  const showProfileDialog = requiresOnboarding || isProfileDialogOpen;
+  const isDraftCountryValid = showProfileDialog ? isSupportedCountryCode(draftCountry) : true;
+  const typingEnabled = onboardingComplete && !isProfileDialogOpen;
+  const { snapshot, restart } = useTypingEngine(currentText, duration, typingEnabled);
   const textCharacters = useMemo(() => Array.from(snapshot.text), [snapshot.text]);
 
   useEffect(() => {
@@ -142,6 +146,20 @@ export default function HomePage() {
     setSaveStatus("idle");
     restart(nextDuration ?? duration);
   };
+
+  const ensureCountryOptionsLoaded = () => {
+    if (countryOptions.length > 0) return;
+    startTransition(() => {
+      setCountryOptions(getCountryOptions());
+    });
+  };
+
+  const openProfileDialog = () => {
+    setDraftName(userName);
+    setDraftCountry(userCountry);
+    ensureCountryOptionsLoaded();
+    setIsProfileDialogOpen(true);
+  };
   
   const saveProfile = () => {
     const nextName = draftName.trim();
@@ -152,19 +170,22 @@ export default function HomePage() {
     getOrCreateUserId();
     setUserName(nextName);
     setUserCountry(nextCountry);
+    setIsProfileDialogOpen(false);
   };
 
   return (
     <>
       {showCelebration && <CelebrationOverlay name={userName} />}
 
-      {(!userName || !userCountry) && (
+      {showProfileDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <Card className="w-full max-w-md">
             <CardContent className="space-y-4 p-6">
-              <h2 className="text-xl font-semibold">Welcome to Lenuk Type</h2>
+              <h2 className="text-xl font-semibold">{requiresOnboarding ? "Welcome to Lenuk Type" : "Edit Profile"}</h2>
               <p className="text-sm text-muted-foreground">
-                Enter your name and country once to start. Next visits will remember you.
+                {requiresOnboarding
+                  ? "Enter your name and country once to start. Next visits will remember you."
+                  : "Update your display name and country for future leaderboard entries."}
               </p>
               <input
                 autoFocus
@@ -177,13 +198,20 @@ export default function HomePage() {
                 }}
               />
               <CountryPicker value={draftCountry} options={countryOptions} onChange={setDraftCountry} />
-              <Button
-                onClick={saveProfile}
-                className="w-full"
-                disabled={!draftName.trim() || !isDraftCountryValid || countryOptions.length === 0}
-              >
-                Save profile and start
-              </Button>
+              <div className="flex gap-2">
+                {!requiresOnboarding && (
+                  <Button variant="ghost" className="w-full" onClick={() => setIsProfileDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  onClick={saveProfile}
+                  className="w-full"
+                  disabled={!draftName.trim() || !isDraftCountryValid || countryOptions.length === 0}
+                >
+                  {requiresOnboarding ? "Save profile and start" : "Save profile"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -198,6 +226,11 @@ export default function HomePage() {
                 {userCountry && <CountryFlag code={userCountry} />}
                 <span>{userName || "Guest"}</span>
               </div>
+              {onboardingComplete && (
+                <Button variant="ghost" size="sm" onClick={openProfileDialog}>
+                  Edit profile
+                </Button>
+              )}
 
               <Tabs
                 value={mode}
