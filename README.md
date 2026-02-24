@@ -19,3 +19,9 @@ AI-assisted typing game built with Next.js App Router and TypeScript.
 - ✅ Phase 1 typing engine (high-performance ref-driven engine)
 - ⏳ AI challenge generation route
 - ⏳ Results persistence + leaderboard routes
+
+If Vercel reports `Vulnerable version of Next.js detected`, ensure:
+
+1. `next` is pinned to a patched version in `package.json` (this repo pins `15.5.4`).
+2. `eslint-config-next` matches the same major/minor patch line.
+3. You redeploy the **latest commit** and clear old build cache once in Vercel.
