@@ -1,7 +1,8 @@
 import { setDefaultResultOrder } from "node:dns";
 
 const SHEETDB_URL = "https://sheetdb.io/api/v1/jdx5xt0rq2m09";
-const SHEETDB_TIMEOUT_MS = 8000;
+const SHEETDB_GET_TIMEOUT_MS = 20000;
+const SHEETDB_POST_TIMEOUT_MS = 12000;
 const SHEETDB_GET_CACHE_TTL_MS = 4000;
 
 try {
@@ -47,9 +48,14 @@ function describeError(error: unknown) {
   return error.message;
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 async function sheetdbFetch(method: "GET" | "POST", body?: string) {
+  const timeoutMs = method === "GET" ? SHEETDB_GET_TIMEOUT_MS : SHEETDB_POST_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SHEETDB_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(SHEETDB_URL, {
@@ -62,7 +68,8 @@ async function sheetdbFetch(method: "GET" | "POST", body?: string) {
       signal: controller.signal
     });
   } catch (error) {
-    throw new Error(`SheetDB ${method} request failed: ${describeError(error)}`);
+    const message = isAbortError(error) ? `Timed out after ${timeoutMs}ms` : describeError(error);
+    throw new Error(`SheetDB ${method} request failed: ${message}`);
   } finally {
     clearTimeout(timeout);
   }
@@ -90,17 +97,26 @@ export async function getResultsFromSheetDB() {
 
   if (!inFlightGetResults) {
     inFlightGetResults = (async () => {
-      const response = await sheetdbFetch("GET");
+      try {
+        const response = await sheetdbFetch("GET");
 
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(`SheetDB GET failed: ${response.status} ${message}`);
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(`SheetDB GET failed: ${response.status} ${message}`);
+        }
+
+        const data = await response.json();
+        cachedResults = data;
+        cachedResultsAt = Date.now();
+        return data;
+      } catch (error) {
+        // If SheetDB is slow/down, serve the last known good results instead of failing leaderboard loads.
+        if (cachedResults) {
+          return cachedResults;
+        }
+
+        throw error;
       }
-
-      const data = await response.json();
-      cachedResults = data;
-      cachedResultsAt = Date.now();
-      return data;
     })().finally(() => {
       inFlightGetResults = null;
     });
