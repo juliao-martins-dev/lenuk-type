@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -21,11 +22,73 @@ const durationOptions: Array<{ label: string; value: DurationSeconds }> = [
   { label: "60s", value: 60 }
 ];
 
+const difficultyOptions = [
+  { label: "Easy", value: "easy" },
+  { label: "Medium", value: "medium" },
+  { label: "Hard", value: "hard" }
+];
+
+function getOrCreateUserId() {
+  if (typeof window === "undefined") return "anonymous";
+  const key = "lenuk-user-id";
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const created = crypto.randomUUID();
+  localStorage.setItem(key, created);
+  return created;
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
+  const [difficulty, setDifficulty] = useState("easy");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const submittedRef = useRef(false);
+
   const currentText = useMemo(() => SAMPLE_TEXTS[mode], [mode]);
+  const promptId = useMemo(() => `prompt-${mode}-${currentText.length}`, [mode, currentText]);
   const { snapshot, restart } = useTypingEngine(currentText, duration);
+
+  useEffect(() => {
+    if (!snapshot.metrics.finished || submittedRef.current) return;
+
+    submittedRef.current = true;
+    setSaveStatus("saving");
+
+    const payload = {
+      userId: getOrCreateUserId(),
+      mode,
+      difficulty,
+      durationSeconds: duration,
+      wpm: snapshot.metrics.wpm,
+      rawWpm: snapshot.metrics.rawWpm,
+      accuracy: snapshot.metrics.accuracy,
+      errors: snapshot.metrics.errors,
+      promptId,
+      metadata: {
+        correctChars: snapshot.metrics.correctChars,
+        typedChars: snapshot.metrics.typedChars,
+        elapsed: snapshot.metrics.elapsed
+      }
+    };
+
+    fetch("/api/results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to save result");
+        setSaveStatus("saved");
+      })
+      .catch(() => setSaveStatus("error"));
+  }, [difficulty, duration, mode, promptId, snapshot.metrics]);
+
+  const handleRestart = (nextDuration?: DurationSeconds) => {
+    submittedRef.current = false;
+    setSaveStatus("idle");
+    restart(nextDuration ?? duration);
+  };
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center px-4 py-10">
@@ -36,7 +99,7 @@ export default function HomePage() {
               value={mode}
               onValueChange={(next) => {
                 setMode(next as "text" | "code");
-                restart(duration);
+                handleRestart(duration);
               }}
               options={[
                 { label: "Text", value: "text" },
@@ -45,19 +108,30 @@ export default function HomePage() {
             />
             <div className="flex items-center gap-2">
               <Select
+                value={difficulty}
+                options={difficultyOptions}
+                onChange={(event) => {
+                  setDifficulty(event.target.value);
+                  handleRestart(duration);
+                }}
+              />
+              <Select
                 value={String(duration)}
                 options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
                 onChange={(event) => {
                   const next = Number(event.target.value) as DurationSeconds;
                   setDuration(next);
-                  restart(next);
+                  handleRestart(next);
                 }}
               />
               <Tooltip text="Restart">
-                <Button variant="ghost" onClick={() => restart(duration)}>
+                <Button variant="ghost" onClick={() => handleRestart(duration)}>
                   Restart
                 </Button>
               </Tooltip>
+              <Link href="/leaderboard" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                Leaderboard
+              </Link>
             </div>
           </div>
 
@@ -94,6 +168,10 @@ export default function HomePage() {
             <Stat label="Errors" value={snapshot.metrics.errors} />
             <Stat label="Time" value={`${Math.ceil(snapshot.metrics.timeLeft)}s`} />
           </div>
+          
+          <p className="text-sm text-muted-foreground">
+            Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
+          </p>
         </CardContent>
       </Card>
     </main>

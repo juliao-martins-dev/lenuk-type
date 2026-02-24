@@ -36,13 +36,11 @@ export class TypingEngine {
   private typedChars = 0;
   private started = false;
   private finished = false;
-  private snapshot: EngineSnapshot;
 
   constructor(text: string, duration: DurationSeconds) {
     this.text = text;
     this.duration = duration;
     this.statuses = new Int8Array(text.length);
-    this.snapshot = this.computeSnapshot();
   }
 
   subscribe = (listener: Listener) => {
@@ -54,7 +52,7 @@ export class TypingEngine {
     for (const listener of this.listeners) listener();
   }
 
-  private computeSnapshot(): EngineSnapshot {
+  getSnapshot = (): EngineSnapshot => {
     const elapsedMs = this.started ? Date.now() - this.startedAt : 0;
     const elapsed = Math.min(this.duration, elapsedMs / 1000);
     const minutes = Math.max(elapsed / 60, 1 / 60);
@@ -79,13 +77,7 @@ export class TypingEngine {
         finished: this.finished
       }
     };
-  }
-
-  private refreshSnapshot() {
-    this.snapshot = this.computeSnapshot();
-  }
-
-  getSnapshot = (): EngineSnapshot => this.snapshot;
+  };
 
   setText(text: string) {
     this.text = text;
@@ -103,8 +95,6 @@ export class TypingEngine {
     this.started = false;
     this.finished = false;
     this.startedAt = 0;
-    this.timer = null;
-    this.refreshSnapshot();
     this.emit();
   }
 
@@ -118,7 +108,6 @@ export class TypingEngine {
         this.finish();
         return;
       }
-      this.refreshSnapshot();
       this.emit();
     }, 100);
   }
@@ -127,7 +116,6 @@ export class TypingEngine {
     this.finished = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    this.refreshSnapshot();
     this.emit();
   }
 
@@ -150,8 +138,6 @@ export class TypingEngine {
       this.finish();
       return;
     }
-
-    this.refreshSnapshot();
     this.emit();
   }
 }
