@@ -108,6 +108,7 @@ export class TypingEngine {
         this.finish();
         return;
       }
+      
       this.emit();
     }, 100);
   }

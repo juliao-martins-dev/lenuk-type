@@ -20,7 +20,6 @@ AI-assisted typing game built with Next.js App Router and TypeScript.
 - ⏳ AI challenge generation route
 - ✅ Results persistence + leaderboard routes
 
-
 ## Vercel deploy note (Next.js CVE block)
 
 If Vercel reports `Vulnerable version of Next.js detected`, ensure:
@@ -35,7 +34,6 @@ If Vercel reports `Vulnerable version of Next.js detected`, ensure:
 - `POST /api/results`: validates and saves finished runs to SheetDB server-side.
 - `GET /api/results`: fetches latest rows from SheetDB, sorts by WPM desc, returns top 50.
 - `GET /leaderboard`: live leaderboard page that auto-refreshes every 5 seconds.
-
 
 ## UX additions
 

@@ -109,7 +109,7 @@ export default function HomePage() {
     setSaveStatus("idle");
     restart(nextDuration ?? duration);
   };
-
+  
   const saveName = () => {
     const nextName = draftName.trim();
     if (!nextName) return;
