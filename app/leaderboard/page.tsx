@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { CountryFlag } from "@/components/ui/country-flag";
+import { countryName } from "@/lib/countries";
 
 interface LeaderboardItem {
   id: string;
   createdAt: string;
   userId: string;
   userName: string;
+  country: string;
   mode: string;
   difficulty: string;
   durationSeconds: number;
@@ -63,11 +66,12 @@ export default function LeaderboardPage() {
           </div>
 
           <div className="overflow-auto rounded border">
-            <table className="w-full min-w-[800px] text-left text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-muted/30">
                 <tr>
                   <Th>#</Th>
                   <Th>Player</Th>
+                  <Th>Country</Th>
                   <Th>WPM</Th>
                   <Th>Raw</Th>
                   <Th>Accuracy</Th>
@@ -87,6 +91,16 @@ export default function LeaderboardPage() {
                         <User className="h-4 w-4 text-primary" />
                         {item.userName || item.userId}
                       </span>
+                    </Td>
+                    <Td>
+                      {item.country ? (
+                        <span className="inline-flex items-center gap-2">
+                          <CountryFlag code={item.country} />
+                          <span>{countryName(item.country)}</span>
+                        </span>
+                      ) : (
+                        "-"
+                      )}
                     </Td>
                     <Td>{item.wpm}</Td>
                     <Td>{item.rawWpm}</Td>

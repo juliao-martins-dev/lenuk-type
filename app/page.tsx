@@ -5,10 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CountryFlag } from "@/components/ui/country-flag";
+import { CountryPicker } from "@/components/ui/country-picker";
 import { Tabs } from "@/components/ui/tabs";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { COUNTRY_CODE_SET, COUNTRY_OPTIONS } from "@/lib/countries";
 import { DurationSeconds } from "@/lib/engine/typing-engine";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 
@@ -44,29 +47,42 @@ function getUserName() {
   return localStorage.getItem("lenuk-user-name") ?? "";
 }
 
+function getUserCountry() {
+  if (typeof window === "undefined") return "";
+  return (localStorage.getItem("lenuk-user-country") ?? "").toUpperCase();
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState("easy");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [userName, setUserName] = useState("");
+  const [userCountry, setUserCountry] = useState("");
   const [draftName, setDraftName] = useState("");
+  const [draftCountry, setDraftCountry] = useState("");
   const [showCelebration, setShowCelebration] = useState(false);
   const submittedRef = useRef(false);
 
   const currentText = useMemo(() => SAMPLE_TEXTS[mode], [mode]);
   const promptId = useMemo(() => `prompt-${mode}-${currentText.length}`, [mode, currentText]);
-  const { snapshot, restart } = useTypingEngine(currentText, duration);
+  const { snapshot, restart } = useTypingEngine(currentText, duration, Boolean(userName && userCountry));
 
   useEffect(() => {
     const existingName = getUserName();
+    const existingCountry = getUserCountry();
     if (existingName) {
       setUserName(existingName);
+      setDraftName(existingName);
+    }
+    if (existingCountry) {
+      setUserCountry(existingCountry);
+      setDraftCountry(existingCountry);
     }
   }, []);
 
   useEffect(() => {
-    if (!snapshot.metrics.finished || submittedRef.current || !userName) return;
+    if (!snapshot.metrics.finished || submittedRef.current || !userName || !userCountry) return;
 
     submittedRef.current = true;
     setSaveStatus("saving");
@@ -75,7 +91,8 @@ export default function HomePage() {
 
     const payload = {
       userId: getOrCreateUserId(),
-      userName,
+      player: userName,
+      country: userCountry,
       mode,
       difficulty,
       durationSeconds: duration,
@@ -85,7 +102,6 @@ export default function HomePage() {
       errors: snapshot.metrics.errors,
       promptId,
       metadata: {
-        userName,
         correctChars: snapshot.metrics.correctChars,
         typedChars: snapshot.metrics.typedChars,
         elapsed: snapshot.metrics.elapsed
@@ -102,7 +118,7 @@ export default function HomePage() {
         setSaveStatus("saved");
       })
       .catch(() => setSaveStatus("error"));
-  }, [difficulty, duration, mode, promptId, snapshot.metrics, userName]);
+  }, [difficulty, duration, mode, promptId, snapshot.metrics, userCountry, userName]);
 
   const handleRestart = (nextDuration?: DurationSeconds) => {
     submittedRef.current = false;
@@ -110,35 +126,46 @@ export default function HomePage() {
     restart(nextDuration ?? duration);
   };
   
-  const saveName = () => {
+  const saveProfile = () => {
     const nextName = draftName.trim();
-    if (!nextName) return;
+    const nextCountry = draftCountry.trim().toUpperCase();
+    if (!nextName || !COUNTRY_CODE_SET.has(nextCountry)) return;
     localStorage.setItem("lenuk-user-name", nextName);
+    localStorage.setItem("lenuk-user-country", nextCountry);
     getOrCreateUserId();
     setUserName(nextName);
+    setUserCountry(nextCountry);
   };
 
   return (
     <>
       {showCelebration && <CelebrationOverlay name={userName} />}
 
-      {!userName && (
+      {(!userName || !userCountry) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <Card className="w-full max-w-md">
             <CardContent className="space-y-4 p-6">
               <h2 className="text-xl font-semibold">Welcome to Lenuk Type</h2>
-              <p className="text-sm text-muted-foreground">Enter your name once to start. Next visits will remember you.</p>
+              <p className="text-sm text-muted-foreground">
+                Enter your name and country once to start. Next visits will remember you.
+              </p>
               <input
+                autoFocus
                 value={draftName}
                 onChange={(event) => setDraftName(event.target.value)}
                 placeholder="Your name"
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-ring focus:ring-2"
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") saveName();
+                  if (event.key === "Enter") saveProfile();
                 }}
               />
-              <Button onClick={saveName} className="w-full">
-                Start typing
+              <CountryPicker value={draftCountry} options={COUNTRY_OPTIONS} onChange={setDraftCountry} />
+              <Button
+                onClick={saveProfile}
+                className="w-full"
+                disabled={!draftName.trim() || !COUNTRY_CODE_SET.has(draftCountry.toUpperCase())}
+              >
+                Save profile and start
               </Button>
             </CardContent>
           </Card>
@@ -151,6 +178,7 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm">
                 <User className="h-4 w-4 text-primary" />
+                {userCountry && <CountryFlag code={userCountry} />}
                 <span>{userName || "Guest"}</span>
               </div>
 

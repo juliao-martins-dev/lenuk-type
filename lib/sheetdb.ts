@@ -4,6 +4,7 @@ export interface TypingResultRow {
   id: string;
   createdAt: string;
   userId: string;
+  player: string;
   mode: string;
   difficulty: string;
   durationSeconds: number;
@@ -13,6 +14,7 @@ export interface TypingResultRow {
   errors: number;
   promptId: string;
   metadata: string;
+  country: string;
 }
 
 export async function postResultToSheetDB(row: TypingResultRow) {

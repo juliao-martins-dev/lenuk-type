@@ -19,10 +19,22 @@ export async function POST(request: Request) {
       }
     }
 
+    const player =
+      typeof payload.player === "string" && payload.player.trim()
+        ? payload.player.trim()
+        : typeof payload.userName === "string" && payload.userName.trim()
+          ? payload.userName.trim()
+          : "";
+
+    if (!player) {
+      return NextResponse.json({ error: "Missing field: player" }, { status: 400 });
+    }
+
     const row: TypingResultRow = {
       id: payload.id || randomUUID(),
       createdAt: payload.createdAt || new Date().toISOString(),
       userId: String(payload.userId),
+      player,
       mode: String(payload.mode),
       difficulty: String(payload.difficulty),
       durationSeconds: toNumber(payload.durationSeconds),
@@ -31,7 +43,8 @@ export async function POST(request: Request) {
       accuracy: toNumber(payload.accuracy),
       errors: toNumber(payload.errors),
       promptId: String(payload.promptId),
-      metadata: typeof payload.metadata === "string" ? payload.metadata : JSON.stringify(payload.metadata ?? {})
+      metadata: typeof payload.metadata === "string" ? payload.metadata : JSON.stringify(payload.metadata ?? {}),
+      country: typeof payload.country === "string" ? payload.country.toUpperCase() : ""
     };
 
     const result = await postResultToSheetDB(row);
@@ -57,7 +70,18 @@ export async function GET() {
 
         return {
           ...entry,
-          userName: typeof metadataObj.userName === "string" ? metadataObj.userName : entry.userId,
+          userName:
+            typeof entry.player === "string" && entry.player
+              ? entry.player
+              : typeof metadataObj.userName === "string"
+                ? metadataObj.userName
+                : entry.userId,
+          country:
+            typeof entry.country === "string" && entry.country
+              ? entry.country.toUpperCase()
+              : typeof metadataObj.country === "string"
+                ? metadataObj.country.toUpperCase()
+                : "",
           wpm: toNumber(entry.wpm),
           rawWpm: toNumber(entry.rawWpm),
           accuracy: toNumber(entry.accuracy),
