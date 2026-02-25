@@ -4,11 +4,56 @@ import { getResultsFromSheetDB, postResultToSheetDB, type TypingResultRow } from
 
 export const runtime = "nodejs";
 
-const REQUIRED_FIELDS = ["userId", "mode", "difficulty", "durationSeconds", "wpm", "rawWpm", "accuracy", "errors", "promptId"];
+const REQUIRED_FIELDS = [
+  "userId",
+  "mode",
+  "difficulty",
+  "durationSeconds",
+  "wpm",
+  "rawWpm",
+  "accuracy",
+  "errors",
+  "promptId"
+] as const;
+const ALLOWED_MODES = new Set(["text", "code"]);
+const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
+const ALLOWED_DURATIONS = new Set([15, 30, 60]);
+
+type JsonRecord = Record<string, unknown>;
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeString(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxLength);
+}
+
+function normalizeCountry(value: unknown) {
+  const normalized = sanitizeString(value, 2).toUpperCase();
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : "";
+}
+
+function toSafeMetadataJson(value: unknown) {
+  if (typeof value === "string") {
+    return value.slice(0, 20000);
+  }
+
+  try {
+    return JSON.stringify(value ?? {}).slice(0, 20000);
+  } catch {
+    return "{}";
+  }
 }
 
 function toTimeMs(value: unknown) {
@@ -47,6 +92,9 @@ function leaderboardGroupKey(item: LeaderboardResult) {
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
+    if (!isJsonRecord(payload)) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
     for (const field of REQUIRED_FIELDS) {
       if (payload[field] === undefined || payload[field] === null || payload[field] === "") {
@@ -56,31 +104,50 @@ export async function POST(request: Request) {
 
     const player =
       typeof payload.player === "string" && payload.player.trim()
-        ? payload.player.trim()
+        ? sanitizeString(payload.player, 60)
         : typeof payload.userName === "string" && payload.userName.trim()
-          ? payload.userName.trim()
+          ? sanitizeString(payload.userName, 60)
           : "";
 
     if (!player) {
       return NextResponse.json({ error: "Missing field: player" }, { status: 400 });
     }
 
+    const mode = sanitizeString(payload.mode, 16);
+    if (!ALLOWED_MODES.has(mode)) {
+      return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+    }
+
+    const difficulty = sanitizeString(payload.difficulty, 16);
+    if (!ALLOWED_DIFFICULTIES.has(difficulty)) {
+      return NextResponse.json({ error: "Invalid difficulty" }, { status: 400 });
+    }
+
+    const durationSeconds = Math.trunc(toNumber(payload.durationSeconds));
+    if (!ALLOWED_DURATIONS.has(durationSeconds)) {
+      return NextResponse.json({ error: "Invalid durationSeconds" }, { status: 400 });
+    }
+
     const row: TypingResultRow = {
-      id: payload.id || randomUUID(),
-      createdAt: payload.createdAt || new Date().toISOString(),
-      userId: String(payload.userId),
+      id: sanitizeString(payload.id, 120) || randomUUID(),
+      createdAt: sanitizeString(payload.createdAt, 64) || new Date().toISOString(),
+      userId: sanitizeString(payload.userId, 120),
       player,
-      mode: String(payload.mode),
-      difficulty: String(payload.difficulty),
-      durationSeconds: toNumber(payload.durationSeconds),
-      wpm: toNumber(payload.wpm),
-      rawWpm: toNumber(payload.rawWpm),
-      accuracy: toNumber(payload.accuracy),
-      errors: toNumber(payload.errors),
-      promptId: String(payload.promptId),
-      metadata: typeof payload.metadata === "string" ? payload.metadata : JSON.stringify(payload.metadata ?? {}),
-      country: typeof payload.country === "string" ? payload.country.toUpperCase() : ""
+      mode,
+      difficulty,
+      durationSeconds,
+      wpm: clampNumber(toNumber(payload.wpm), 0, 500),
+      rawWpm: clampNumber(toNumber(payload.rawWpm), 0, 500),
+      accuracy: clampNumber(toNumber(payload.accuracy), 0, 100),
+      errors: Math.max(0, Math.trunc(toNumber(payload.errors))),
+      promptId: sanitizeString(payload.promptId, 200),
+      metadata: toSafeMetadataJson(payload.metadata),
+      country: normalizeCountry(payload.country)
     };
+
+    if (!row.userId || !row.promptId) {
+      return NextResponse.json({ error: "Invalid identifiers" }, { status: 400 });
+    }
 
     const result = await postResultToSheetDB(row);
     return NextResponse.json({ success: true, row, sheetdb: result });

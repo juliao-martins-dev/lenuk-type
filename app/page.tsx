@@ -39,8 +39,8 @@ const difficultyOptions = [
 
 const textWordCountOptions = [
   { label: "25w", value: "25" },
+  { label: "30w", value: "30" },
   { label: "50w", value: "50" },
-  { label: "60w", value: "60" },
   { label: "100w", value: "100" },
   { label: "200w", value: "200" }
 ] as const;
@@ -111,9 +111,9 @@ function toGeneratorDifficulty(difficulty: string): "common" | "mixed" {
 }
 
 function getTypingWordCount() {
-  if (typeof window === "undefined") return 60;
+  if (typeof window === "undefined") return 30;
   const value = Number(localStorage.getItem("lenuk-typing-word-count"));
-  return supportedTextWordCounts.has(value) ? value : 60;
+  return supportedTextWordCounts.has(value) ? value : 30;
 }
 
 export default function HomePage() {
@@ -121,7 +121,7 @@ export default function HomePage() {
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState("easy");
   const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_LANGUAGE_CODE);
-  const [textWordCount, setTextWordCount] = useState<number>(60);
+  const [textWordCount, setTextWordCount] = useState<number>(30);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [userName, setUserName] = useState("");
   const [userCountry, setUserCountry] = useState("");
@@ -385,6 +385,7 @@ export default function HomePage() {
               )}
 
               <Tabs
+                ariaLabel="Typing mode"
                 value={mode}
                 onValueChange={(next) => {
                   const nextMode = next as "text" | "code";
@@ -401,6 +402,7 @@ export default function HomePage() {
                 <Select
                   className="max-w-[180px]"
                   value={typingLanguageCode}
+                  aria-label="Typing language"
                   options={typingLanguageOptions}
                   disabled={mode !== "text"}
                   onChange={(event) => {
@@ -415,6 +417,7 @@ export default function HomePage() {
                 <Select
                   className="w-[84px]"
                   value={String(textWordCount)}
+                  aria-label="Word count"
                   options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
                   disabled={mode !== "text"}
                   onChange={(event) => {
@@ -428,6 +431,7 @@ export default function HomePage() {
                 />
                 <Select
                   value={difficulty}
+                  aria-label="Difficulty"
                   options={difficultyOptions}
                   onChange={(event) => {
                     resetRunUiState();
@@ -439,6 +443,7 @@ export default function HomePage() {
                 />
                 <Select
                   value={String(duration)}
+                  aria-label="Duration"
                   options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
                   onChange={(event) => {
                     const next = Number(event.target.value) as DurationSeconds;
@@ -509,7 +514,9 @@ export default function HomePage() {
 
             <TypingStats metrics={snapshot.metrics} />
 
-            <p className="text-sm text-muted-foreground">Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}</p>
+            <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+              Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
+            </p>
           </CardContent>
         </Card>
       </main>
@@ -521,13 +528,14 @@ function CelebrationOverlay({ name }: { name: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
       <div className="absolute inset-0 bg-primary/10" />
-      <div className="absolute left-1/2 top-1/3 -translate-x-1/2 text-center">
+      <div role="status" aria-live="polite" className="absolute left-1/2 top-1/3 -translate-x-1/2 text-center">
         <p className="text-3xl font-bold">Amazing, {name}!</p>
         <p className="mt-2 text-sm text-muted-foreground">You finished the run!</p>
       </div>
       {Array.from({ length: 24 }).map((_, index) => (
         <span
           key={index}
+          aria-hidden
           className="firework-dot"
           style={{
             left: `${(index % 8) * 12 + 6}%`,

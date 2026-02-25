@@ -116,7 +116,7 @@ export default function LeaderboardPage() {
                     <Td>
                       {item.country ? (
                         <span className="inline-flex items-center gap-2">
-                          <CountryFlag code={item.country} />
+                          <CountryFlag code={item.country} variant="emoji" />
                           <span>{countryName(item.country)}</span>
                         </span>
                       ) : (
