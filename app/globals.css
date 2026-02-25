@@ -3,6 +3,24 @@
 @tailwind utilities;
 
 :root {
+  --background: 214 42% 97%;
+  --foreground: 224 33% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 33% 10%;
+  --primary: 205 92% 52%;
+  --primary-foreground: 210 40% 98%;
+  --muted: 214 32% 92%;
+  --muted-foreground: 220 15% 40%;
+  --accent: 210 38% 92%;
+  --accent-foreground: 224 33% 10%;
+  --destructive: 0 72% 46%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 27% 85%;
+  --input: 214 27% 85%;
+  --ring: 205 92% 52%;
+}
+
+.dark {
   --background: 222 47% 6%;
   --foreground: 210 40% 96.1%;
   --card: 224 43% 8%;
@@ -20,12 +38,41 @@
   --ring: 199 89% 48%;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 * {
   @apply border-border;
 }
 
+html,
 body {
-  @apply bg-background text-foreground antialiased;
+  min-height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased transition-colors duration-200;
+  background-image:
+    radial-gradient(circle at 12% 8%, hsl(var(--primary) / 0.14), transparent 42%),
+    radial-gradient(circle at 88% 14%, hsl(var(--primary) / 0.1), transparent 36%),
+    linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+}
+
+.dark body {
+  background-image:
+    radial-gradient(circle at 14% 8%, hsl(var(--primary) / 0.16), transparent 46%),
+    radial-gradient(circle at 86% 12%, hsl(var(--primary) / 0.12), transparent 40%),
+    linear-gradient(180deg, hsl(224 62% 6%), hsl(var(--background)));
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.25);
+  color: hsl(var(--foreground));
 }
 
 @keyframes firework-float {

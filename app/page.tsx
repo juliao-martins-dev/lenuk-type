@@ -13,6 +13,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { TypingPrompt } from "@/components/typing/typing-prompt";
 import { TypingStats } from "@/components/typing/typing-stats";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds } from "@/lib/engine/typing-engine";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
@@ -346,11 +347,11 @@ export default function HomePage() {
         </div>
       )}
 
-      <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center px-4 py-10">
-        <Card className="w-full">
-          <CardContent className="space-y-6">
+      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-8 md:py-10">
+        <Card className="w-full border border-border/80 bg-card/80 shadow-2xl shadow-black/10 backdrop-blur">
+          <CardContent className="space-y-6 p-5 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm">
+              <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-sm backdrop-blur">
                 <User className="h-4 w-4 text-primary" />
                 {userCountry && <CountryFlag code={userCountry} />}
                 <span>{userName || "Guest"}</span>
@@ -437,6 +438,7 @@ export default function HomePage() {
                 >
                   Leaderboard
                 </Link>
+                <ThemeToggle />
               </div>
             </div>
 
@@ -453,8 +455,12 @@ export default function HomePage() {
               finished={snapshot.metrics.finished}
             />
 
-            {snapshot.metrics.finished && (
-              <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="min-h-9">
+              <div
+                className={`flex flex-wrap items-center justify-end gap-2 transition-opacity ${
+                  snapshot.metrics.finished ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+              >
                 <Tooltip text="Restart same content">
                   <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
                     <RotateCcw className="mr-1 h-4 w-4" />
@@ -470,7 +476,7 @@ export default function HomePage() {
                   </Tooltip>
                 )}
               </div>
-            )}
+            </div>
 
             <TypingStats metrics={snapshot.metrics} />
 

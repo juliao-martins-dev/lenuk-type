@@ -16,9 +16,8 @@ interface TypingPromptProps {
   finished: boolean;
 }
 
-function renderCharacter(character: string, status: number, active: boolean) {
+function renderCharacter(character: string) {
   if (character === " ") {
-    if (active || status === -1) return "\u00B7";
     return " ";
   }
 
@@ -34,12 +33,8 @@ function PromptText({ text, statuses, index, mode, capture, enabled, finished }:
   const showFocusHint = !capture.isFocused && enabled && !finished;
   const sectionClassName =
     mode === "code"
-      ? `relative overflow-auto rounded-lg border bg-background/40 p-4 font-mono text-base leading-7 tracking-normal whitespace-pre [tab-size:2] ${
-          showFocusHint ? "pr-32" : ""
-        }`
-      : `relative rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide ${
-          showFocusHint ? "pr-32" : ""
-        }`;
+      ? "relative min-h-[12.5rem] overflow-auto rounded-xl border bg-background/55 p-4 pr-32 shadow-inner shadow-black/5 font-mono text-base leading-7 tracking-normal whitespace-pre [tab-size:2]"
+      : "relative min-h-[9.5rem] rounded-xl border bg-background/55 p-4 pr-32 text-2xl leading-relaxed tracking-wide whitespace-pre-wrap shadow-inner shadow-black/5 md:min-h-[10.5rem]";
 
   const handleMouseDown = (event: MouseEvent<HTMLElement>) => {
     if (!enabled) return;
@@ -65,6 +60,7 @@ function PromptText({ text, statuses, index, mode, capture, enabled, finished }:
       {characters.map((character, charIndex) => {
         const status = statuses[charIndex];
         const active = charIndex === index;
+        const showSpaceMarker = character === " " && (active || status === -1);
 
         return (
           <span
@@ -87,7 +83,15 @@ function PromptText({ text, statuses, index, mode, capture, enabled, finished }:
                 } ${caretClassName(mode)}`}
               />
             )}
-            {renderCharacter(character, status, active)}
+            {showSpaceMarker && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[0.7em] text-current"
+              >
+                {"\u00B7"}
+              </span>
+            )}
+            {renderCharacter(character)}
           </span>
         );
       })}
