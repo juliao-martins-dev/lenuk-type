@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 
-
 interface TabsProps {
   value: string;
   onValueChange: (next: string) => void;

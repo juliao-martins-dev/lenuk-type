@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { CountryFlag } from "@/components/ui/country-flag";
 import type { CountryOption } from "@/lib/countries";
@@ -25,8 +25,6 @@ export function CountryPicker({
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const listboxId = useId();
-  const searchInputId = useId();
 
   const normalizedValue = value.trim().toUpperCase();
   const selected = useMemo(
@@ -80,20 +78,13 @@ export function CountryPicker({
     <div ref={rootRef} className={cn("relative w-full", className)}>
       <button
         type="button"
-        className="flex h-10 w-full items-center justify-between rounded-md border border-border/90 bg-card px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => {
           if (options.length === 0) return;
           setOpen((prev) => !prev);
         }}
-        onKeyDown={(event) => {
-          if (event.key !== "ArrowDown" || options.length === 0 || open) return;
-          event.preventDefault();
-          setOpen(true);
-        }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={open ? listboxId : undefined}
-        aria-label={selected ? `Selected country: ${selected.name}` : placeholder}
         disabled={options.length === 0}
       >
         <span className="flex min-w-0 items-center gap-2">
@@ -112,27 +103,19 @@ export function CountryPicker({
       </button>
 
       {open && (
-        <div className="absolute z-[60] mt-2 w-full rounded-lg border border-border/90 bg-card p-2 shadow-xl shadow-black/10">
-          <div className="mb-2 flex items-center gap-2 rounded-md border border-border/80 bg-background px-2 shadow-sm">
+        <div className="absolute z-[60] mt-2 w-full rounded-md border bg-popover p-2 shadow-lg">
+          <div className="mb-2 flex items-center gap-2 rounded-md border bg-background px-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
-              id={searchInputId}
               ref={searchInputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search country..."
-              className="h-9 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              aria-label="Search country"
-              aria-controls={listboxId}
+              className="h-9 w-full bg-transparent text-sm outline-none"
             />
           </div>
 
-          <div
-            id={listboxId}
-            role="listbox"
-            aria-label="Country options"
-            className="max-h-64 overflow-auto rounded-md border border-border/80 bg-background"
-          >
+          <div className="max-h-64 overflow-auto rounded-md border">
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-muted-foreground">No countries found</div>
             ) : (
@@ -144,8 +127,8 @@ export function CountryPicker({
                     key={option.code}
                     type="button"
                     className={cn(
-                      "flex w-full items-center justify-between rounded-sm px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground",
-                      active && "bg-accent text-accent-foreground"
+                      "flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground",
+                      active && "bg-accent/60"
                     )}
                     onClick={() => handleSelect(option.code)}
                     role="option"
