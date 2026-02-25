@@ -1,6 +1,7 @@
 "use client";
 
-import { Keyboard, Sparkles } from "lucide-react";
+import Image from "next/image";
+import { Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "lenuk-splash-seen";
@@ -102,7 +103,7 @@ export function LenukSplashScreen({ onVisibilityChange, ready = true }: LenukSpl
 
       <div className="relative w-full max-w-xl rounded-3xl border border-border/70 bg-card/80 p-8 text-center shadow-2xl shadow-black/15 backdrop-blur-xl">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary lenuk-splash-orb">
-          <Keyboard className="h-8 w-8" />
+          <Image src="/icon.png" alt="Lenuk Type logo" width={32} height={32} priority className="h-8 w-8 rounded-md object-contain" />
         </div>
 
         <div className="lenuk-splash-rise">
@@ -123,3 +124,4 @@ export function LenukSplashScreen({ onVisibilityChange, ready = true }: LenukSpl
     </div>
   );
 }
+
