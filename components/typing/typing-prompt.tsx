@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, type MouseEvent } from "react";
+import { memo, useMemo, type MouseEvent } from "react";
 import type { TypingCapture } from "@/hooks/use-typing-engine";
 
 type TypingPromptMode = "text" | "code";
@@ -29,7 +29,7 @@ function caretClassName(mode: TypingPromptMode) {
 }
 
 function PromptText({ text, statuses, index, mode, capture, enabled, finished }: TypingPromptProps) {
-  const characters = Array.from(text);
+  const characters = useMemo(() => Array.from(text), [text]);
   const showFocusHint = !capture.isFocused && enabled && !finished;
   const sectionClassName =
     mode === "code"
