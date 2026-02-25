@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import { User } from "lucide-react";
+import { ArrowRight, RotateCcw, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -11,15 +11,16 @@ import { Tabs } from "@/components/ui/tabs";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { TypingPrompt } from "@/components/typing/typing-prompt";
+import { TypingStats } from "@/components/typing/typing-stats";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds } from "@/lib/engine/typing-engine";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
+import { DEFAULT_LANGUAGE_CODE, listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
+import { useTestContent } from "@/src/content/use-test-content";
 
-const SAMPLE_TEXTS: Record<string, string> = {
-  text: "Refactoring in small steps keeps software stable and lets teams move quickly with confidence.",
-  code:
-    "function formatValues(values) {\n  return values\n    .filter(Boolean)\n    .map((item) => item.trim())\n    .join(\" \");\n}"
-};
+const CODE_SAMPLE_TEXT =
+  "function formatValues(values) {\n  return values\n    .filter(Boolean)\n    .map((item) => item.trim())\n    .join(\" \");\n}";
 
 const durationOptions: Array<{ label: string; value: DurationSeconds }> = [
   { label: "15s", value: 15 },
@@ -31,7 +32,28 @@ const difficultyOptions = [
   { label: "Easy", value: "easy" },
   { label: "Medium", value: "medium" },
   { label: "Hard", value: "hard" }
-];
+] as const;
+
+const textWordCountOptions = [
+  { label: "25w", value: "25" },
+  { label: "50w", value: "50" },
+  { label: "60w", value: "60" },
+  { label: "100w", value: "100" },
+  { label: "200w", value: "200" }
+] as const;
+
+const typingLanguageOptions = listLanguages().map((language) => ({
+  label: language.name,
+  value: language.code
+}));
+
+const supportedTypingLanguageCodes = new Set<SupportedLanguageCode>(
+  typingLanguageOptions.map((option) => option.value as SupportedLanguageCode)
+);
+const supportedModes = new Set<"text" | "code">(["text", "code"]);
+const supportedDurations = new Set<DurationSeconds>(durationOptions.map((option) => option.value));
+const supportedDifficulties = new Set<string>(difficultyOptions.map((option) => option.value));
+const supportedTextWordCounts = new Set<number>(textWordCountOptions.map((option) => Number(option.value)));
 
 function getOrCreateUserId() {
   if (typeof window === "undefined") return "anonymous";
@@ -53,10 +75,50 @@ function getUserCountry() {
   return (localStorage.getItem("lenuk-user-country") ?? "").toUpperCase();
 }
 
+function isSupportedTypingLanguageCode(value: string): value is SupportedLanguageCode {
+  return supportedTypingLanguageCodes.has(value as SupportedLanguageCode);
+}
+
+function getTypingLanguageCode() {
+  if (typeof window === "undefined") return DEFAULT_LANGUAGE_CODE;
+  const value = localStorage.getItem("lenuk-typing-language");
+  return value && isSupportedTypingLanguageCode(value) ? value : DEFAULT_LANGUAGE_CODE;
+}
+
+function getTypingMode() {
+  if (typeof window === "undefined") return "text" as const;
+  const value = localStorage.getItem("lenuk-typing-mode");
+  return value && supportedModes.has(value as "text" | "code") ? (value as "text" | "code") : "text";
+}
+
+function getTypingDuration() {
+  if (typeof window === "undefined") return 30 as DurationSeconds;
+  const value = Number(localStorage.getItem("lenuk-typing-duration")) as DurationSeconds;
+  return supportedDurations.has(value) ? value : 30;
+}
+
+function getTypingDifficulty() {
+  if (typeof window === "undefined") return "easy";
+  const value = localStorage.getItem("lenuk-typing-difficulty") ?? "easy";
+  return supportedDifficulties.has(value) ? value : "easy";
+}
+
+function toGeneratorDifficulty(difficulty: string): "common" | "mixed" {
+  return difficulty === "easy" ? "common" : "mixed";
+}
+
+function getTypingWordCount() {
+  if (typeof window === "undefined") return 60;
+  const value = Number(localStorage.getItem("lenuk-typing-word-count"));
+  return supportedTextWordCounts.has(value) ? value : 60;
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState("easy");
+  const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_LANGUAGE_CODE);
+  const [textWordCount, setTextWordCount] = useState<number>(60);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [userName, setUserName] = useState("");
   const [userCountry, setUserCountry] = useState("");
@@ -68,15 +130,37 @@ export default function HomePage() {
   const submittedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
 
-  const currentText = useMemo(() => SAMPLE_TEXTS[mode], [mode]);
-  const promptId = useMemo(() => `prompt-${mode}-${currentText.length}`, [mode, currentText]);
+  const generatorDifficulty = useMemo(() => toGeneratorDifficulty(difficulty), [difficulty]);
+  const { content: generatedTextContent, regenerate: regenerateTextContent } = useTestContent({
+    languageCode: typingLanguageCode,
+    mode: "words",
+    wordCount: textWordCount,
+    duration,
+    seed: `lenuk-type:${typingLanguageCode}:${difficulty}:${duration}:${textWordCount}`,
+    punctuation: false,
+    numbers: false,
+    allowRepeat: true,
+    difficulty: generatorDifficulty
+  });
+  const currentText = useMemo(
+    () => (mode === "text" ? generatedTextContent.text : CODE_SAMPLE_TEXT),
+    [generatedTextContent.text, mode]
+  );
+  const promptId = useMemo(() => {
+    if (mode === "text") {
+      return `gen:${generatedTextContent.languageCode}:${generatedTextContent.seed}`;
+    }
+
+    return `code:${CODE_SAMPLE_TEXT.length}`;
+  }, [generatedTextContent.languageCode, generatedTextContent.seed, mode]);
   const onboardingComplete = Boolean(userName && userCountry);
   const requiresOnboarding = !onboardingComplete;
   const showProfileDialog = requiresOnboarding || isProfileDialogOpen;
   const isDraftCountryValid = showProfileDialog ? isSupportedCountryCode(draftCountry) : true;
   const typingEnabled = onboardingComplete && !isProfileDialogOpen;
-  const { snapshot, restart } = useTypingEngine(currentText, duration, typingEnabled);
-  const textCharacters = useMemo(() => Array.from(snapshot.text), [snapshot.text]);
+  const { snapshot, restart, capture } = useTypingEngine(currentText, duration, typingEnabled);
+  const focusTypingInput = capture.focusInput;
+  const blurTypingInput = capture.blurInput;
 
   useEffect(() => {
     const existingName = getUserName();
@@ -89,6 +173,11 @@ export default function HomePage() {
       setUserCountry(existingCountry);
       setDraftCountry(existingCountry);
     }
+    setMode(getTypingMode());
+    setDuration(getTypingDuration());
+    setDifficulty(getTypingDifficulty());
+    setTypingLanguageCode(getTypingLanguageCode());
+    setTextWordCount(getTypingWordCount());
     if (!existingName || !existingCountry) {
       startTransition(() => {
         setCountryOptions(getCountryOptions());
@@ -120,7 +209,11 @@ export default function HomePage() {
       metadata: {
         correctChars: snapshot.metrics.correctChars,
         typedChars: snapshot.metrics.typedChars,
-        elapsed: snapshot.metrics.elapsed
+        elapsed: snapshot.metrics.elapsed,
+        languageCode: mode === "text" ? generatedTextContent.languageCode : null,
+        contentSeed: mode === "text" ? generatedTextContent.seed : null,
+        tokenCount: mode === "text" ? generatedTextContent.tokens.length : null,
+        requestedWordCount: mode === "text" ? textWordCount : null
       }
     };
 
@@ -134,7 +227,7 @@ export default function HomePage() {
         setSaveStatus("saved");
       })
       .catch(() => setSaveStatus("error"));
-  }, [difficulty, duration, mode, promptId, snapshot.metrics, userCountry, userName]);
+  }, [difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, mode, promptId, snapshot.metrics, textWordCount, userCountry, userName]);
 
   useEffect(() => {
     return () => {
@@ -142,10 +235,45 @@ export default function HomePage() {
     };
   }, []);
 
-  const handleRestart = (nextDuration?: DurationSeconds) => {
+  useEffect(() => {
+    if (!typingEnabled) return;
+    const frameId = window.requestAnimationFrame(() => focusTypingInput());
+    return () => window.cancelAnimationFrame(frameId);
+  }, [focusTypingInput, typingEnabled]);
+
+  useEffect(() => {
+    if (!snapshot.metrics.finished) return;
+    blurTypingInput();
+  }, [blurTypingInput, snapshot.metrics.finished]);
+
+  const focusTypingSoon = () => {
+    if (!typingEnabled) return;
+    window.requestAnimationFrame(() => focusTypingInput());
+  };
+
+  const resetRunUiState = () => {
     submittedRef.current = false;
     setSaveStatus("idle");
-    restart(nextDuration ?? duration);
+  };
+
+  const handleRestart = (options?: {
+    nextDuration?: DurationSeconds;
+    targetMode?: "text" | "code";
+    regenerateText?: boolean;
+  }) => {
+    const nextDuration = options?.nextDuration ?? duration;
+    const targetMode = options?.targetMode ?? mode;
+    const shouldRegenerateText = Boolean(options?.regenerateText && targetMode === "text");
+
+    resetRunUiState();
+
+    if (shouldRegenerateText) {
+      regenerateTextContent();
+    } else {
+      restart(nextDuration);
+    }
+
+    focusTypingSoon();
   };
 
   const ensureCountryOptionsLoaded = () => {
@@ -236,8 +364,10 @@ export default function HomePage() {
               <Tabs
                 value={mode}
                 onValueChange={(next) => {
-                  setMode(next as "text" | "code");
-                  handleRestart(duration);
+                  const nextMode = next as "text" | "code";
+                  localStorage.setItem("lenuk-typing-mode", nextMode);
+                  setMode(nextMode);
+                  handleRestart({ targetMode: nextMode, regenerateText: nextMode === "text" });
                 }}
                 options={[
                   { label: "Text", value: "text" },
@@ -246,11 +376,42 @@ export default function HomePage() {
               />
               <div className="flex items-center gap-2">
                 <Select
+                  className="max-w-[180px]"
+                  value={typingLanguageCode}
+                  options={typingLanguageOptions}
+                  disabled={mode !== "text"}
+                  onChange={(event) => {
+                    const nextLanguageCode = event.target.value;
+                    if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
+                    resetRunUiState();
+                    localStorage.setItem("lenuk-typing-language", nextLanguageCode);
+                    setTypingLanguageCode(nextLanguageCode);
+                    focusTypingSoon();
+                  }}
+                />
+                <Select
+                  className="w-[84px]"
+                  value={String(textWordCount)}
+                  options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
+                  disabled={mode !== "text"}
+                  onChange={(event) => {
+                    const nextWordCount = Number(event.target.value);
+                    if (!supportedTextWordCounts.has(nextWordCount)) return;
+                    resetRunUiState();
+                    localStorage.setItem("lenuk-typing-word-count", String(nextWordCount));
+                    setTextWordCount(nextWordCount);
+                    focusTypingSoon();
+                  }}
+                />
+                <Select
                   value={difficulty}
                   options={difficultyOptions}
                   onChange={(event) => {
+                    resetRunUiState();
+                    localStorage.setItem("lenuk-typing-difficulty", event.target.value);
                     setDifficulty(event.target.value);
-                    handleRestart(duration);
+                    restart(duration);
+                    focusTypingSoon();
                   }}
                 />
                 <Select
@@ -258,12 +419,15 @@ export default function HomePage() {
                   options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
                   onChange={(event) => {
                     const next = Number(event.target.value) as DurationSeconds;
+                    resetRunUiState();
+                    localStorage.setItem("lenuk-typing-duration", String(next));
                     setDuration(next);
-                    handleRestart(next);
+                    restart(next);
+                    focusTypingSoon();
                   }}
                 />
                 <Tooltip text="Restart">
-                  <Button variant="ghost" onClick={() => handleRestart(duration)}>
+                  <Button variant="ghost" onClick={() => handleRestart()}>
                     Restart
                   </Button>
                 </Tooltip>
@@ -278,43 +442,37 @@ export default function HomePage() {
 
             <Progress value={snapshot.metrics.progress} />
 
-            <section
-              className={
-                mode === "code"
-                  ? "overflow-auto rounded-lg border bg-background/40 p-4 font-mono text-sm leading-6 tracking-normal whitespace-pre [tab-size:2]"
-                  : "rounded-lg border bg-background/40 p-4 text-2xl leading-relaxed tracking-wide"
-              }
-            >
-              {textCharacters.map((character, index) => {
-                const status = snapshot.statuses[index];
-                const active = index === snapshot.index;
+            <TypingPrompt
+              text={snapshot.text}
+              statuses={snapshot.statuses}
+              index={snapshot.index}
+              strokeVersion={snapshot.strokeVersion}
+              mode={mode}
+              capture={capture}
+              enabled={typingEnabled}
+              finished={snapshot.metrics.finished}
+            />
 
-                return (
-                  <span
-                    key={`${character}-${index}`}
-                    className={
-                      active
-                        ? "rounded bg-primary/20 text-foreground"
-                        : status === 1
-                          ? "text-foreground"
-                          : status === -1
-                            ? "text-destructive"
-                            : "text-muted-foreground"
-                    }
-                  >
-                    {character}
-                  </span>
-                );
-              })}
-            </section>
+            {snapshot.metrics.finished && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Tooltip text="Restart same content">
+                  <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
+                    <RotateCcw className="mr-1 h-4 w-4" />
+                    Restart
+                  </Button>
+                </Tooltip>
+                {mode === "text" && (
+                  <Tooltip text="Next content">
+                    <Button variant="ghost" size="sm" onClick={() => handleRestart({ regenerateText: true })}>
+                      <ArrowRight className="mr-1 h-4 w-4" />
+                      Next
+                    </Button>
+                  </Tooltip>
+                )}
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              <Stat label="WPM" value={snapshot.metrics.wpm} />
-              <Stat label="Raw" value={snapshot.metrics.rawWpm} />
-              <Stat label="Accuracy" value={`${snapshot.metrics.accuracy}%`} />
-              <Stat label="Errors" value={snapshot.metrics.errors} />
-              <Stat label="Time" value={`${Math.ceil(snapshot.metrics.timeLeft)}s`} />
-            </div>
+            <TypingStats metrics={snapshot.metrics} />
 
             <p className="text-sm text-muted-foreground">Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}</p>
           </CardContent>
@@ -346,11 +504,3 @@ function CelebrationOverlay({ name }: { name: string }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-md border bg-muted/20 p-3">
-      <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold">{value}</p>
-    </div>
-  );
-}
