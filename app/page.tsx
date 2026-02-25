@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, Keyboard, RotateCcw, SlidersHorizontal, Trophy, User } from "lucide-react";
+import { ArrowRight, Keyboard, Play, RotateCcw, SlidersHorizontal, Trophy, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -17,7 +17,7 @@ import { TypingStats } from "@/components/typing/typing-stats";
 import { BeginnerGuide } from "@/components/typing/beginner-guide";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
-import { DurationSeconds } from "@/lib/engine/typing-engine";
+import { DurationSeconds, type EngineSnapshot } from "@/lib/engine/typing-engine";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 import { DEFAULT_LANGUAGE_CODE, listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
@@ -57,6 +57,42 @@ const supportedModes = new Set<"text" | "code">(["text", "code"]);
 const supportedDurations = new Set<DurationSeconds>(durationOptions.map((option) => option.value));
 const supportedDifficulties = new Set<string>(difficultyOptions.map((option) => option.value));
 const supportedTextWordCounts = new Set<number>(textWordCountOptions.map((option) => Number(option.value)));
+
+interface ReplayFrame {
+  atMs: number;
+  index: number;
+  statuses: Int8Array;
+}
+
+interface ReplayRun {
+  text: string;
+  frames: ReplayFrame[];
+}
+
+interface ReplayViewState {
+  index: number;
+  statuses: Int8Array;
+  strokeVersion: number;
+}
+
+function createReplaySignature(snapshot: EngineSnapshot) {
+  return [
+    snapshot.strokeVersion,
+    snapshot.index,
+    snapshot.metrics.typedChars,
+    snapshot.metrics.correctChars,
+    snapshot.metrics.errors,
+    snapshot.text.length
+  ].join(":");
+}
+
+function createReplayFrame(snapshot: EngineSnapshot): ReplayFrame {
+  return {
+    atMs: Math.max(0, Math.round(snapshot.metrics.elapsed * 1000)),
+    index: snapshot.index,
+    statuses: snapshot.statuses.slice()
+  };
+}
 
 function getOrCreateUserId() {
   if (typeof window === "undefined") return "anonymous";
@@ -132,8 +168,20 @@ export default function HomePage() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isSplashVisible, setIsSplashVisible] = useState(true);
   const [isFrontendBootReady, setIsFrontendBootReady] = useState(false);
+  const [completedReplayRun, setCompletedReplayRun] = useState<ReplayRun | null>(null);
+  const [replayView, setReplayView] = useState<ReplayViewState | null>(null);
   const submittedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
+  const replayCaptureRef = useRef<{
+    text: string;
+    frames: ReplayFrame[];
+    lastSignature: string | null;
+  }>({
+    text: "",
+    frames: [],
+    lastSignature: null
+  });
+  const replayTimeoutsRef = useRef<number[]>([]);
 
   const generatorDifficulty = useMemo(() => toGeneratorDifficulty(difficulty), [difficulty]);
   const { content: generatedTextContent, regenerate: regenerateTextContent } = useTestContent({
@@ -167,6 +215,14 @@ export default function HomePage() {
   const isRunFinished = snapshot.metrics.finished;
   const focusTypingInput = capture.focusInput;
   const blurTypingInput = capture.blurInput;
+  const isReplaying = replayView !== null;
+  const promptIndex = replayView?.index ?? snapshot.index;
+  const promptStatuses = replayView?.statuses ?? snapshot.statuses;
+  const promptStrokeVersion = replayView?.strokeVersion ?? snapshot.strokeVersion;
+  const promptProgress = snapshot.text.length === 0 ? 0 : (promptIndex / snapshot.text.length) * 100;
+  const canReplayFinishedRun =
+    isRunFinished &&
+    Boolean(completedReplayRun && completedReplayRun.text === snapshot.text && completedReplayRun.frames.length > 0);
 
   useEffect(() => {
     let raf1 = 0;
@@ -264,12 +320,76 @@ export default function HomePage() {
     blurTypingInput();
   }, [blurTypingInput, snapshot.metrics.finished]);
 
+  useEffect(() => {
+    const tracker = replayCaptureRef.current;
+
+    if (tracker.text !== snapshot.text) {
+      tracker.text = snapshot.text;
+      tracker.frames = [];
+      tracker.lastSignature = null;
+    }
+
+    const signature = createReplaySignature(snapshot);
+
+    if (!snapshot.metrics.started) {
+      tracker.frames = [{ atMs: 0, index: snapshot.index, statuses: snapshot.statuses.slice() }];
+      tracker.lastSignature = signature;
+      return;
+    }
+
+    if (tracker.lastSignature === signature) return;
+
+    tracker.frames.push(createReplayFrame(snapshot));
+    tracker.lastSignature = signature;
+  }, [snapshot]);
+
+  useEffect(() => {
+    if (!snapshot.metrics.finished) return;
+
+    const tracker = replayCaptureRef.current;
+    const finalSignature = createReplaySignature(snapshot);
+    const finalFrame = createReplayFrame(snapshot);
+    const lastFrame = tracker.frames[tracker.frames.length - 1];
+
+    if (tracker.lastSignature !== finalSignature) {
+      tracker.frames.push(finalFrame);
+      tracker.lastSignature = finalSignature;
+    } else if (!lastFrame || finalFrame.atMs > lastFrame.atMs) {
+      tracker.frames.push(finalFrame);
+    }
+
+    setCompletedReplayRun({
+      text: snapshot.text,
+      frames: tracker.frames.map((frame) => ({ ...frame }))
+    });
+  }, [snapshot]);
+
+  useEffect(() => {
+    return () => {
+      for (const timeoutId of replayTimeoutsRef.current) {
+        window.clearTimeout(timeoutId);
+      }
+      replayTimeoutsRef.current = [];
+    };
+  }, []);
+
   const focusTypingSoon = () => {
     if (!typingEnabled) return;
     window.requestAnimationFrame(() => focusTypingInput());
   };
 
   const resetRunUiState = () => {
+    for (const timeoutId of replayTimeoutsRef.current) {
+      window.clearTimeout(timeoutId);
+    }
+    replayTimeoutsRef.current = [];
+    replayCaptureRef.current = {
+      text: currentText,
+      frames: [],
+      lastSignature: null
+    };
+    setReplayView(null);
+    setCompletedReplayRun(null);
     submittedRef.current = false;
     setSaveStatus("idle");
   };
@@ -292,6 +412,41 @@ export default function HomePage() {
     }
 
     focusTypingSoon();
+  };
+
+  const handleReplay = () => {
+    if (!completedReplayRun || completedReplayRun.text !== snapshot.text || completedReplayRun.frames.length === 0) return;
+
+    for (const timeoutId of replayTimeoutsRef.current) {
+      window.clearTimeout(timeoutId);
+    }
+    replayTimeoutsRef.current = [];
+    blurTypingInput();
+
+    const frames = completedReplayRun.frames;
+    setReplayView({
+      index: frames[0].index,
+      statuses: frames[0].statuses,
+      strokeVersion: 1
+    });
+
+    for (let frameIndex = 1; frameIndex < frames.length; frameIndex += 1) {
+      const frame = frames[frameIndex];
+      const timeoutId = window.setTimeout(() => {
+        setReplayView({
+          index: frame.index,
+          statuses: frame.statuses,
+          strokeVersion: frameIndex + 1
+        });
+      }, frame.atMs);
+      replayTimeoutsRef.current.push(timeoutId);
+    }
+
+    const endTimeoutId = window.setTimeout(() => {
+      replayTimeoutsRef.current = [];
+      setReplayView(null);
+    }, (frames[frames.length - 1]?.atMs ?? 0) + 150);
+    replayTimeoutsRef.current.push(endTimeoutId);
   };
 
   const ensureCountryOptionsLoaded = () => {
@@ -553,20 +708,20 @@ export default function HomePage() {
 
             <div
               className={`space-y-6 transition-[filter,opacity] duration-300 ${
-                isRunFinished ? "pointer-events-none select-none blur-[3px] opacity-50 saturate-50" : ""
+                isRunFinished && !isReplaying ? "pointer-events-none select-none blur-[3px] opacity-50 saturate-50" : ""
               }`}
-              aria-hidden={isRunFinished || undefined}
+              aria-hidden={isRunFinished && !isReplaying ? true : undefined}
             >
-              <Progress value={snapshot.metrics.progress} className="h-2.5 bg-muted/70" />
+              <Progress value={promptProgress} className="h-2.5 bg-muted/70" />
 
               <TypingPrompt
                 text={snapshot.text}
-                statuses={snapshot.statuses}
-                index={snapshot.index}
-                strokeVersion={snapshot.strokeVersion}
+                statuses={promptStatuses}
+                index={promptIndex}
+                strokeVersion={promptStrokeVersion}
                 mode={mode}
                 capture={capture}
-                enabled={typingEnabled}
+                enabled={typingEnabled && !isReplaying}
                 finished={isRunFinished}
               />
 
@@ -592,20 +747,28 @@ export default function HomePage() {
                     isRunFinished ? "opacity-100" : "opacity-0"
                   }`}
                 />
+                <Tooltip text="Replay your typing">
+                  <Button variant="ghost" size="sm" onClick={handleReplay} disabled={!canReplayFinishedRun}>
+                    <Play className="mr-1 h-4 w-4" />
+                    {isReplaying ? "Replaying..." : "Replay"}
+                  </Button>
+                </Tooltip>
                 <Tooltip text="Restart same content">
                   <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
                     <RotateCcw className="mr-1 h-4 w-4" />
                     Restart
                   </Button>
                 </Tooltip>
-                {mode === "text" && (
-                  <Tooltip text="Next content">
-                    <Button variant="ghost" size="sm" onClick={() => handleRestart({ regenerateText: true })}>
-                      <ArrowRight className="mr-1 h-4 w-4" />
-                      Next
-                    </Button>
-                  </Tooltip>
-                )}
+                <Tooltip text={mode === "text" ? "Next content" : "Start next run"}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRestart({ regenerateText: mode === "text" })}
+                  >
+                    <ArrowRight className="mr-1 h-4 w-4" />
+                    Next
+                  </Button>
+                </Tooltip>
               </div>
             </div>
 
