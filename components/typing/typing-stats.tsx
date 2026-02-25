@@ -20,10 +20,9 @@ export function TypingStats({ metrics }: TypingStatsProps) {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border bg-muted/20 p-3">
-      <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold">{value}</p>
+    <div className="rounded-xl border bg-card/70 p-3 shadow-sm backdrop-blur">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
-

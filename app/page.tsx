@@ -11,8 +11,10 @@ import { Tabs } from "@/components/ui/tabs";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { LenukSplashScreen } from "@/components/ui/lenuk-splash-screen";
 import { TypingPrompt } from "@/components/typing/typing-prompt";
 import { TypingStats } from "@/components/typing/typing-stats";
+import { BeginnerGuide } from "@/components/typing/beginner-guide";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds } from "@/lib/engine/typing-engine";
@@ -128,6 +130,7 @@ export default function HomePage() {
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
   const submittedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
 
@@ -158,7 +161,7 @@ export default function HomePage() {
   const requiresOnboarding = !onboardingComplete;
   const showProfileDialog = requiresOnboarding || isProfileDialogOpen;
   const isDraftCountryValid = showProfileDialog ? isSupportedCountryCode(draftCountry) : true;
-  const typingEnabled = onboardingComplete && !isProfileDialogOpen;
+  const typingEnabled = onboardingComplete && !isProfileDialogOpen && !isSplashVisible;
   const { snapshot, restart, capture } = useTypingEngine(currentText, duration, typingEnabled);
   const focusTypingInput = capture.focusInput;
   const blurTypingInput = capture.blurInput;
@@ -305,6 +308,7 @@ export default function HomePage() {
 
   return (
     <>
+      <LenukSplashScreen onVisibilityChange={setIsSplashVisible} />
       {showCelebration && <CelebrationOverlay name={userName} />}
 
       {showProfileDialog && (
@@ -350,12 +354,30 @@ export default function HomePage() {
       <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-8 md:py-10">
         <Card className="w-full border border-border/80 bg-card/80 shadow-2xl shadow-black/10 backdrop-blur">
           <CardContent className="space-y-6 p-5 md:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-sm backdrop-blur">
-                <User className="h-4 w-4 text-primary" />
-                {userCountry && <CountryFlag code={userCountry} />}
-                <span>{userName || "Guest"}</span>
+            <section className="rounded-2xl border bg-background/45 p-4 shadow-sm backdrop-blur">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-xs text-muted-foreground">
+                    <span className="inline-block h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.15)]" />
+                    Friendly typing practice for beginners
+                  </div>
+                  <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Lenuk Type</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Free typing test in English and Tetun. Fast, clean, and beginner-friendly for Timor-Leste and global users.
+                  </p>
+                  <p className="text-xs text-muted-foreground/90">
+                    Teste tipu lalais iha English no Tetun, simples no lalais ba ema hotu.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-sm backdrop-blur">
+                  <User className="h-4 w-4 text-primary" />
+                  {userCountry && <CountryFlag code={userCountry} />}
+                  <span>{userName || "Guest"}</span>
+                </div>
               </div>
+            </section>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
               {onboardingComplete && (
                 <Button variant="ghost" size="sm" onClick={openProfileDialog}>
                   Edit profile
@@ -375,7 +397,7 @@ export default function HomePage() {
                   { label: "Code", value: "code" }
                 ]}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-background/35 p-2 backdrop-blur">
                 <Select
                   className="max-w-[180px]"
                   value={typingLanguageCode}
@@ -442,7 +464,14 @@ export default function HomePage() {
               </div>
             </div>
 
-            <Progress value={snapshot.metrics.progress} />
+            <Progress value={snapshot.metrics.progress} className="h-2.5 bg-muted/70" />
+
+            <BeginnerGuide
+              typingLanguageCode={typingLanguageCode}
+              mode={mode}
+              onFocusPrompt={focusTypingSoon}
+              canFocusPrompt={typingEnabled && !snapshot.metrics.finished}
+            />
 
             <TypingPrompt
               text={snapshot.text}
