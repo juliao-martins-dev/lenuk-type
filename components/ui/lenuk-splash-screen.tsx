@@ -1,53 +1,99 @@
 "use client";
 
 import { Keyboard, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "lenuk-splash-seen";
 
+type SplashPhase = "boot" | "show" | "fade" | "done";
+
 interface LenukSplashScreenProps {
   onVisibilityChange?: (visible: boolean) => void;
+  ready?: boolean;
 }
 
-export function LenukSplashScreen({ onVisibilityChange }: LenukSplashScreenProps) {
-  const [phase, setPhase] = useState<"boot" | "show" | "fade" | "done">("boot");
+export function LenukSplashScreen({ onVisibilityChange, ready = true }: LenukSplashScreenProps) {
+  const [phase, setPhase] = useState<SplashPhase>("boot");
+  const [minDurationReached, setMinDurationReached] = useState(false);
+  const [documentLoaded, setDocumentLoaded] = useState(false);
+  const fadeTimerRef = useRef<number | null>(null);
+  const loadListenerCleanupRef = useRef<(() => void) | null>(null);
+
+  const visible = phase === "show" || phase === "fade";
+  const canClose = phase === "show" && ready && minDurationReached && documentLoaded;
+
+  const timings = useMemo(() => {
+    if (typeof window === "undefined") {
+      return { minVisibleMs: 1000, fadeMs: 280 };
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return prefersReducedMotion
+      ? { minVisibleMs: 550, fadeMs: 120 }
+      : { minVisibleMs: 1050, fadeMs: 260 };
+  }, []);
+
+  useEffect(() => {
+    if (phase === "boot") return;
+    onVisibilityChange?.(visible);
+  }, [onVisibilityChange, phase, visible]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const alreadySeen = localStorage.getItem(STORAGE_KEY) === "1";
     if (alreadySeen) {
+      setDocumentLoaded(true);
+      setMinDurationReached(true);
       setPhase("done");
-      onVisibilityChange?.(false);
       return;
     }
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const showDurationMs = prefersReducedMotion ? 900 : 1400;
-    const fadeLeadMs = prefersReducedMotion ? 180 : 320;
-
-    localStorage.setItem(STORAGE_KEY, "1");
     setPhase("show");
-    onVisibilityChange?.(true);
 
-    const fadeTimer = window.setTimeout(() => setPhase("fade"), Math.max(0, showDurationMs - fadeLeadMs));
-    const doneTimer = window.setTimeout(() => {
-      setPhase("done");
-      onVisibilityChange?.(false);
-    }, showDurationMs);
+    const onLoad = () => setDocumentLoaded(true);
+    if (document.readyState === "complete") {
+      setDocumentLoaded(true);
+    } else {
+      window.addEventListener("load", onLoad, { once: true });
+      loadListenerCleanupRef.current = () => window.removeEventListener("load", onLoad);
+    }
+
+    const minTimer = window.setTimeout(() => setMinDurationReached(true), timings.minVisibleMs);
 
     return () => {
-      window.clearTimeout(fadeTimer);
-      window.clearTimeout(doneTimer);
+      window.clearTimeout(minTimer);
+      if (fadeTimerRef.current !== null) window.clearTimeout(fadeTimerRef.current);
+      loadListenerCleanupRef.current?.();
+      loadListenerCleanupRef.current = null;
     };
-  }, [onVisibilityChange]);
+  }, [timings.minVisibleMs]);
 
-  if (phase === "done" || phase === "boot") return null;
+  useEffect(() => {
+    if (!canClose) return;
+
+    localStorage.setItem(STORAGE_KEY, "1");
+    setPhase("fade");
+
+    fadeTimerRef.current = window.setTimeout(() => {
+      setPhase("done");
+    }, timings.fadeMs);
+
+    return () => {
+      if (fadeTimerRef.current !== null) {
+        window.clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
+    };
+  }, [canClose, timings.fadeMs]);
+
+  // Render during "boot" as well so the page content does not flash before the splash mounts.
+  if (phase === "done") return null;
 
   return (
     <div
-      className={`fixed inset-0 z-[70] flex items-center justify-center px-4 transition-opacity duration-300 ${
-        phase === "fade" ? "opacity-0" : "opacity-100"
+      className={`fixed inset-0 z-[70] flex items-center justify-center px-4 transition-opacity ${
+        phase === "fade" ? "opacity-0 duration-300" : "opacity-100 duration-150"
       }`}
       aria-hidden
     >
@@ -77,4 +123,3 @@ export function LenukSplashScreen({ onVisibilityChange }: LenukSplashScreenProps
     </div>
   );
 }
-

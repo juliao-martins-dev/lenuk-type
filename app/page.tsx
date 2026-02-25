@@ -131,6 +131,7 @@ export default function HomePage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [isFrontendBootReady, setIsFrontendBootReady] = useState(false);
   const submittedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
 
@@ -167,6 +168,8 @@ export default function HomePage() {
   const blurTypingInput = capture.blurInput;
 
   useEffect(() => {
+    let raf1 = 0;
+    let raf2 = 0;
     const existingName = getUserName();
     const existingCountry = getUserCountry();
     if (existingName) {
@@ -187,6 +190,16 @@ export default function HomePage() {
         setCountryOptions(getCountryOptions());
       });
     }
+
+    // Mark the page as ready only after the initial client state bootstraps and a paint occurs.
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => setIsFrontendBootReady(true));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
   }, []);
 
   useEffect(() => {
@@ -308,7 +321,7 @@ export default function HomePage() {
 
   return (
     <>
-      <LenukSplashScreen onVisibilityChange={setIsSplashVisible} />
+      <LenukSplashScreen ready={isFrontendBootReady} onVisibilityChange={setIsSplashVisible} />
       {showCelebration && <CelebrationOverlay name={userName} />}
 
       {showProfileDialog && (
@@ -385,6 +398,7 @@ export default function HomePage() {
               )}
 
               <Tabs
+                ariaLabel="Typing mode"
                 value={mode}
                 onValueChange={(next) => {
                   const nextMode = next as "text" | "code";
@@ -401,6 +415,7 @@ export default function HomePage() {
                 <Select
                   className="max-w-[180px]"
                   value={typingLanguageCode}
+                  aria-label="Typing language"
                   options={typingLanguageOptions}
                   disabled={mode !== "text"}
                   onChange={(event) => {
@@ -415,6 +430,7 @@ export default function HomePage() {
                 <Select
                   className="w-[84px]"
                   value={String(textWordCount)}
+                  aria-label="Word count"
                   options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
                   disabled={mode !== "text"}
                   onChange={(event) => {
@@ -428,6 +444,7 @@ export default function HomePage() {
                 />
                 <Select
                   value={difficulty}
+                  aria-label="Difficulty"
                   options={difficultyOptions}
                   onChange={(event) => {
                     resetRunUiState();
@@ -439,6 +456,7 @@ export default function HomePage() {
                 />
                 <Select
                   value={String(duration)}
+                  aria-label="Duration"
                   options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
                   onChange={(event) => {
                     const next = Number(event.target.value) as DurationSeconds;
@@ -509,7 +527,9 @@ export default function HomePage() {
 
             <TypingStats metrics={snapshot.metrics} />
 
-            <p className="text-sm text-muted-foreground">Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}</p>
+            <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+              Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
+            </p>
           </CardContent>
         </Card>
       </main>
@@ -521,13 +541,14 @@ function CelebrationOverlay({ name }: { name: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
       <div className="absolute inset-0 bg-primary/10" />
-      <div className="absolute left-1/2 top-1/3 -translate-x-1/2 text-center">
+      <div role="status" aria-live="polite" className="absolute left-1/2 top-1/3 -translate-x-1/2 text-center">
         <p className="text-3xl font-bold">Amazing, {name}!</p>
         <p className="mt-2 text-sm text-muted-foreground">You finished the run!</p>
       </div>
       {Array.from({ length: 24 }).map((_, index) => (
         <span
           key={index}
+          aria-hidden
           className="firework-dot"
           style={{
             left: `${(index % 8) * 12 + 6}%`,

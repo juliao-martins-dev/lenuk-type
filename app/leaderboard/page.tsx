@@ -79,7 +79,9 @@ export default function LeaderboardPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">Live Leaderboard</h1>
             <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">Status: {status}</p>
+              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+                Status: {status}
+              </p>
               <Link href="/" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 Back to typing
               </Link>
@@ -116,7 +118,7 @@ export default function LeaderboardPage() {
                     <Td>
                       {item.country ? (
                         <span className="inline-flex items-center gap-2">
-                          <CountryFlag code={item.country} />
+                          <CountryFlag code={item.country} variant="emoji" />
                           <span>{countryName(item.country)}</span>
                         </span>
                       ) : (

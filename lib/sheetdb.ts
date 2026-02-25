@@ -1,6 +1,7 @@
 import { setDefaultResultOrder } from "node:dns";
 
-const SHEETDB_URL = "https://sheetdb.io/api/v1/jdx5xt0rq2m09";
+const DEFAULT_SHEETDB_URL = "https://sheetdb.io/api/v1/jdx5xt0rq2m09";
+const SHEETDB_URL = process.env.SHEETDB_URL?.trim() || DEFAULT_SHEETDB_URL;
 const SHEETDB_GET_TIMEOUT_MS = 20000;
 const SHEETDB_POST_TIMEOUT_MS = 12000;
 const SHEETDB_GET_CACHE_TTL_MS = 4000;

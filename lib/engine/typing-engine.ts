@@ -18,15 +18,19 @@ export interface EngineSnapshot {
   text: string;
   index: number;
   statuses: Int8Array;
+  strokeVersion: number;
   metrics: EngineMetrics;
 }
 
 type Listener = () => void;
 
+function nowMs() {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
 
 export class TypingEngine {
   private listeners = new Set<Listener>();
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private startedAt = 0;
   private duration: DurationSeconds;
   private text: string;
@@ -37,11 +41,14 @@ export class TypingEngine {
   private typedChars = 0;
   private started = false;
   private finished = false;
+  private strokeVersion = 0;
+  private snapshot: EngineSnapshot;
 
   constructor(text: string, duration: DurationSeconds) {
     this.text = text;
     this.duration = duration;
     this.statuses = new Int8Array(text.length);
+    this.snapshot = this.computeSnapshot();
   }
 
   subscribe = (listener: Listener) => {
@@ -53,8 +60,14 @@ export class TypingEngine {
     for (const listener of this.listeners) listener();
   }
 
-  getSnapshot = (): EngineSnapshot => {
-    const elapsedMs = this.started ? Date.now() - this.startedAt : 0;
+  dispose() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.listeners.clear();
+  }
+
+  private computeSnapshot(): EngineSnapshot {
+    const elapsedMs = this.started ? nowMs() - this.startedAt : 0;
     const elapsed = Math.min(this.duration, elapsedMs / 1000);
     const minutes = Math.max(elapsed / 60, 1 / 60);
     const wpm = this.correctChars / 5 / minutes;
@@ -64,6 +77,7 @@ export class TypingEngine {
       text: this.text,
       index: this.index,
       statuses: this.statuses,
+      strokeVersion: this.strokeVersion,
       metrics: {
         timeLeft: Math.max(0, this.duration - elapsed),
         elapsed,
@@ -78,7 +92,14 @@ export class TypingEngine {
         finished: this.finished
       }
     };
-  };
+  }
+
+  private refreshSnapshot(kind: "tick" | "stroke" = "tick") {
+    if (kind === "stroke") this.strokeVersion += 1;
+    this.snapshot = this.computeSnapshot();
+  }
+
+  getSnapshot = (): EngineSnapshot => this.snapshot;
 
   setText(text: string) {
     this.text = text;
@@ -96,27 +117,48 @@ export class TypingEngine {
     this.started = false;
     this.finished = false;
     this.startedAt = 0;
+    this.timer = null;
+    this.refreshSnapshot("stroke");
     this.emit();
   }
 
   private start() {
     if (this.started) return;
     this.started = true;
-    this.startedAt = Date.now();
+    this.startedAt = nowMs();
     this.timer = setInterval(() => {
-      const elapsed = (Date.now() - this.startedAt) / 1000;
+      const elapsed = (nowMs() - this.startedAt) / 1000;
       if (elapsed >= this.duration) {
         this.finish();
         return;
       }
+      this.refreshSnapshot("tick");
       this.emit();
     }, 100);
   }
 
   private finish() {
+    if (this.finished) return;
     this.finished = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.refreshSnapshot("tick");
+    this.emit();
+  }
+
+  handleBackspace() {
+    if (this.finished || this.index === 0) return;
+
+    const nextIndex = this.index - 1;
+    const previousStatus = this.statuses[nextIndex];
+
+    if (previousStatus === 1) this.correctChars -= 1;
+    if (previousStatus === -1) this.errors -= 1;
+    if (previousStatus !== 0) this.typedChars -= 1;
+
+    this.statuses[nextIndex] = 0;
+    this.index = nextIndex;
+    this.refreshSnapshot("stroke");
     this.emit();
   }
 
@@ -140,6 +182,7 @@ export class TypingEngine {
       return;
     }
 
+    this.refreshSnapshot("stroke");
     this.emit();
   }
 }
