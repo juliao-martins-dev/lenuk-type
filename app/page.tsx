@@ -164,6 +164,7 @@ export default function HomePage() {
   const isDraftCountryValid = showProfileDialog ? isSupportedCountryCode(draftCountry) : true;
   const typingEnabled = onboardingComplete && !isProfileDialogOpen && !isSplashVisible;
   const { snapshot, restart, capture } = useTypingEngine(currentText, duration, typingEnabled);
+  const isRunFinished = snapshot.metrics.finished;
   const focusTypingInput = capture.focusInput;
   const blurTypingInput = capture.blurInput;
 
@@ -482,32 +483,47 @@ export default function HomePage() {
               </div>
             </div>
 
-            <Progress value={snapshot.metrics.progress} className="h-2.5 bg-muted/70" />
+            <div
+              className={`space-y-6 transition-[filter,opacity] duration-300 ${
+                isRunFinished ? "pointer-events-none select-none blur-[3px] opacity-50 saturate-50" : ""
+              }`}
+              aria-hidden={isRunFinished || undefined}
+            >
+              <Progress value={snapshot.metrics.progress} className="h-2.5 bg-muted/70" />
 
-            <BeginnerGuide
-              typingLanguageCode={typingLanguageCode}
-              mode={mode}
-              onFocusPrompt={focusTypingSoon}
-              canFocusPrompt={typingEnabled && !snapshot.metrics.finished}
-            />
+              <BeginnerGuide
+                typingLanguageCode={typingLanguageCode}
+                mode={mode}
+                onFocusPrompt={focusTypingSoon}
+                canFocusPrompt={typingEnabled && !isRunFinished}
+              />
 
-            <TypingPrompt
-              text={snapshot.text}
-              statuses={snapshot.statuses}
-              index={snapshot.index}
-              strokeVersion={snapshot.strokeVersion}
-              mode={mode}
-              capture={capture}
-              enabled={typingEnabled}
-              finished={snapshot.metrics.finished}
-            />
+              <TypingPrompt
+                text={snapshot.text}
+                statuses={snapshot.statuses}
+                index={snapshot.index}
+                strokeVersion={snapshot.strokeVersion}
+                mode={mode}
+                capture={capture}
+                enabled={typingEnabled}
+                finished={isRunFinished}
+              />
+            </div>
 
-            <div className="min-h-9">
+            <div className="min-h-[3.75rem] flex items-center justify-center">
               <div
-                className={`flex flex-wrap items-center justify-end gap-2 transition-opacity ${
-                  snapshot.metrics.finished ? "opacity-100" : "pointer-events-none opacity-0"
+                className={`relative flex flex-wrap items-center justify-center gap-2 rounded-2xl border px-2 py-1.5 transition-all duration-300 ${
+                  isRunFinished
+                    ? "border-primary/20 bg-card/90 opacity-100 shadow-xl shadow-primary/10 ring-1 ring-primary/20 backdrop-blur"
+                    : "pointer-events-none scale-95 border-transparent opacity-0"
                 }`}
               >
+                <div
+                  aria-hidden
+                  className={`pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.14),transparent_70%)] transition-opacity duration-300 ${
+                    isRunFinished ? "opacity-100" : "opacity-0"
+                  }`}
+                />
                 <Tooltip text="Restart same content">
                   <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
                     <RotateCcw className="mr-1 h-4 w-4" />
@@ -525,11 +541,17 @@ export default function HomePage() {
               </div>
             </div>
 
-            <TypingStats metrics={snapshot.metrics} />
+            <div
+              className={`space-y-4 transition-[filter,opacity] duration-300 ${
+                isRunFinished ? "pointer-events-none select-none blur-[2px] opacity-60" : ""
+              }`}
+            >
+              <TypingStats metrics={snapshot.metrics} />
 
-            <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-              Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
-            </p>
+              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+                Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </main>
