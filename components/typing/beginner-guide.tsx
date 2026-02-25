@@ -48,14 +48,15 @@ function getDefaultGuideLanguage(typingLanguageCode: string): GuideCopyLanguage 
 
 function BeginnerGuideContent({ typingLanguageCode, mode, onFocusPrompt, canFocusPrompt }: BeginnerGuideProps) {
   const [hidden, setHidden] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [copyLanguage, setCopyLanguage] = useState<GuideCopyLanguage>(getDefaultGuideLanguage(typingLanguageCode));
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     setHidden(localStorage.getItem(HIDDEN_KEY) === "1");
-    setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "1");
+    const savedCollapsed = localStorage.getItem(COLLAPSED_KEY);
+    setCollapsed(savedCollapsed === null ? true : savedCollapsed === "1");
 
     const savedCopyLang = localStorage.getItem(COPY_LANG_KEY);
     if (savedCopyLang === "en" || savedCopyLang === "tet") {

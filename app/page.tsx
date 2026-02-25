@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, RotateCcw, Trophy, User } from "lucide-react";
+import { ArrowRight, Keyboard, RotateCcw, SlidersHorizontal, Trophy, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -365,136 +365,191 @@ export default function HomePage() {
         </div>
       )}
 
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-8 md:py-10">
-        <Card className="w-full border border-border/80 bg-card/80 shadow-2xl shadow-black/10 backdrop-blur">
-          <CardContent className="space-y-6 p-5 md:p-6">
-            <section className="rounded-2xl border bg-background/45 p-4 shadow-sm backdrop-blur">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-xs text-muted-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.15)]" />
-                    Friendly typing practice for beginners
+      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-start px-4 py-5 md:py-6">
+        <Card className="w-full border-0 bg-transparent shadow-none">
+          <CardContent className="space-y-3 p-0">
+            <section className="rounded-xl border border-border/60 bg-background/20 p-2.5 shadow-sm backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-sm font-semibold">
+                    <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                    Lenuk Type
                   </div>
-                  <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Lenuk Type</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Free typing test in English and Tetun. Fast, clean, and beginner-friendly for Timor-Leste and global users.
-                  </p>
-                  <p className="text-xs text-muted-foreground/90">
-                    Teste tipu lalais iha English no Tetun, simples no lalais ba ema hotu.
-                  </p>
+                  <span className="hidden rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground md:inline-flex">
+                    English + Tetun typing practice
+                  </span>
+                  <span className="hidden rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground lg:inline-flex">
+                    Click prompt or start typing
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-sm backdrop-blur">
-                  <User className="h-4 w-4 text-primary" />
-                  {userCountry && <CountryFlag code={userCountry} />}
-                  <span>{userName || "Guest"}</span>
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs backdrop-blur">
+                    <User className="h-3.5 w-3.5 text-primary" />
+                    {userCountry && <CountryFlag code={userCountry} />}
+                    <span>{userName || "Guest"}</span>
+                  </div>
+                  <span className="inline-flex items-center rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
+                    {mode === "text" ? "Text" : "Code"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
+                    <span
+                      aria-hidden
+                      className={`inline-flex h-1.5 w-1.5 rounded-full ${
+                        isRunFinished ? "bg-primary" : typingEnabled ? "bg-emerald-500 motion-safe:animate-pulse" : "bg-muted-foreground"
+                      }`}
+                    />
+                    {!onboardingComplete
+                      ? "Complete profile"
+                      : isSplashVisible
+                        ? "Preparing..."
+                        : isRunFinished
+                          ? "Finished"
+                          : "Ready"}
+                  </span>
+                  {onboardingComplete && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 rounded-full border bg-background/50 px-2.5 text-[11px]"
+                      onClick={focusTypingSoon}
+                      disabled={!typingEnabled || isRunFinished}
+                    >
+                      <Keyboard className="mr-1 h-3.5 w-3.5" />
+                      Focus
+                    </Button>
+                  )}
                 </div>
               </div>
             </section>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {onboardingComplete && (
-                <Button variant="ghost" size="sm" onClick={openProfileDialog}>
-                  Edit profile
-                </Button>
-              )}
-
-              <Tabs
-                ariaLabel="Typing mode"
-                value={mode}
-                onValueChange={(next) => {
-                  const nextMode = next as "text" | "code";
-                  localStorage.setItem("lenuk-typing-mode", nextMode);
-                  setMode(nextMode);
-                  handleRestart({ targetMode: nextMode, regenerateText: nextMode === "text" });
-                }}
-                options={[
-                  { label: "Text", value: "text" },
-                  { label: "Code", value: "code" }
-                ]}
-              />
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-background/35 p-2 backdrop-blur">
-                <Select
-                  className="max-w-[180px]"
-                  value={typingLanguageCode}
-                  aria-label="Typing language"
-                  options={typingLanguageOptions}
-                  disabled={mode !== "text"}
-                  onChange={(event) => {
-                    const nextLanguageCode = event.target.value;
-                    if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
-                    resetRunUiState();
-                    localStorage.setItem("lenuk-typing-language", nextLanguageCode);
-                    setTypingLanguageCode(nextLanguageCode);
-                    focusTypingSoon();
-                  }}
-                />
-                <Select
-                  className="w-[84px]"
-                  value={String(textWordCount)}
-                  aria-label="Word count"
-                  options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
-                  disabled={mode !== "text"}
-                  onChange={(event) => {
-                    const nextWordCount = Number(event.target.value);
-                    if (!supportedTextWordCounts.has(nextWordCount)) return;
-                    resetRunUiState();
-                    localStorage.setItem("lenuk-typing-word-count", String(nextWordCount));
-                    setTextWordCount(nextWordCount);
-                    focusTypingSoon();
-                  }}
-                />
-                <Select
-                  value={difficulty}
-                  aria-label="Difficulty"
-                  options={difficultyOptions}
-                  onChange={(event) => {
-                    resetRunUiState();
-                    localStorage.setItem("lenuk-typing-difficulty", event.target.value);
-                    setDifficulty(event.target.value);
-                    restart(duration);
-                    focusTypingSoon();
-                  }}
-                />
-                <Select
-                  value={String(duration)}
-                  aria-label="Duration"
-                  options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
-                  onChange={(event) => {
-                    const next = Number(event.target.value) as DurationSeconds;
-                    resetRunUiState();
-                    localStorage.setItem("lenuk-typing-duration", String(next));
-                    setDuration(next);
-                    restart(next);
-                    focusTypingSoon();
-                  }}
-                />
-                <Tooltip text="Restart">
-                  <Button variant="ghost" onClick={() => handleRestart()}>
-                    Restart
-                  </Button>
-                </Tooltip>
-                <Link
-                  href="/leaderboard"
-                  className="group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0"
-                  aria-label="Open leaderboard"
-                >
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]"
-                  />
-                  <span
-                    aria-hidden
-                    className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-500 group-hover:translate-x-[260%]"
-                  />
-                  <Trophy className="relative h-4 w-4" />
-                  <span className="relative">Leaderboard</span>
-                  <span className="relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
-                    Live
-                  </span>
-                </Link>
-                <ThemeToggle />
+            <section className="space-y-2 rounded-xl border border-border/60 bg-background/15 p-2.5 shadow-sm backdrop-blur" aria-label="Typing controls">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-2 rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground">
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                  Test controls
+                </div>
+                <p className="hidden text-[11px] text-muted-foreground md:block">
+                  Set your test, then click the prompt or start typing. `Esc` restarts.
+                </p>
               </div>
-            </div>
+
+              <div className="grid gap-2 xl:grid-cols-[auto_1fr_auto] xl:items-center">
+                <div className="flex flex-wrap items-center gap-2">
+                  {onboardingComplete && (
+                    <Button variant="ghost" size="sm" onClick={openProfileDialog}>
+                      Edit profile
+                    </Button>
+                  )}
+
+                  <Tabs
+                    ariaLabel="Typing mode"
+                    value={mode}
+                    onValueChange={(next) => {
+                      const nextMode = next as "text" | "code";
+                      localStorage.setItem("lenuk-typing-mode", nextMode);
+                      setMode(nextMode);
+                      handleRestart({ targetMode: nextMode, regenerateText: nextMode === "text" });
+                    }}
+                    options={[
+                      { label: "Text", value: "text" },
+                      { label: "Code", value: "code" }
+                    ]}
+                  />
+                </div>
+
+                <div className="relative flex flex-wrap items-center gap-2 overflow-hidden rounded-xl border border-border/70 bg-[linear-gradient(to_bottom,hsl(var(--background)/0.50),hsl(var(--background)/0.28))] p-2 shadow-sm shadow-black/[0.04] ring-1 ring-white/10 backdrop-blur dark:ring-white/5">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_92%_14%,hsl(var(--primary)/0.06),transparent_26%)]"
+                  />
+                  <Select
+                    className="max-w-[170px]"
+                    value={typingLanguageCode}
+                    aria-label="Typing language"
+                    options={typingLanguageOptions}
+                    disabled={mode !== "text"}
+                    onChange={(event) => {
+                      const nextLanguageCode = event.target.value;
+                      if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
+                      resetRunUiState();
+                      localStorage.setItem("lenuk-typing-language", nextLanguageCode);
+                      setTypingLanguageCode(nextLanguageCode);
+                      focusTypingSoon();
+                    }}
+                  />
+                  <Select
+                    className="w-[88px]"
+                    value={String(textWordCount)}
+                    aria-label="Word count"
+                    options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
+                    disabled={mode !== "text"}
+                    onChange={(event) => {
+                      const nextWordCount = Number(event.target.value);
+                      if (!supportedTextWordCounts.has(nextWordCount)) return;
+                      resetRunUiState();
+                      localStorage.setItem("lenuk-typing-word-count", String(nextWordCount));
+                      setTextWordCount(nextWordCount);
+                      focusTypingSoon();
+                    }}
+                  />
+                  <Select
+                    value={difficulty}
+                    aria-label="Difficulty"
+                    options={difficultyOptions}
+                    onChange={(event) => {
+                      resetRunUiState();
+                      localStorage.setItem("lenuk-typing-difficulty", event.target.value);
+                      setDifficulty(event.target.value);
+                      restart(duration);
+                      focusTypingSoon();
+                    }}
+                  />
+                  <Select
+                    value={String(duration)}
+                    aria-label="Duration"
+                    options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
+                    onChange={(event) => {
+                      const next = Number(event.target.value) as DurationSeconds;
+                      resetRunUiState();
+                      localStorage.setItem("lenuk-typing-duration", String(next));
+                      setDuration(next);
+                      restart(next);
+                      focusTypingSoon();
+                    }}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                  <Tooltip text="Restart">
+                    <Button variant="ghost" onClick={() => handleRestart()}>
+                      <RotateCcw className="mr-1 h-4 w-4" />
+                      Restart
+                    </Button>
+                  </Tooltip>
+                  <Link
+                    href="/leaderboard"
+                    className="group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0"
+                    aria-label="Open leaderboard"
+                  >
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]"
+                    />
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-500 group-hover:translate-x-[260%]"
+                    />
+                    <Trophy className="relative h-4 w-4" />
+                    <span className="relative">Leaderboard</span>
+                    <span className="relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
+                      Live
+                    </span>
+                  </Link>
+                  <ThemeToggle />
+                </div>
+              </div>
+            </section>
 
             <div
               className={`space-y-6 transition-[filter,opacity] duration-300 ${
@@ -503,13 +558,6 @@ export default function HomePage() {
               aria-hidden={isRunFinished || undefined}
             >
               <Progress value={snapshot.metrics.progress} className="h-2.5 bg-muted/70" />
-
-              <BeginnerGuide
-                typingLanguageCode={typingLanguageCode}
-                mode={mode}
-                onFocusPrompt={focusTypingSoon}
-                canFocusPrompt={typingEnabled && !isRunFinished}
-              />
 
               <TypingPrompt
                 text={snapshot.text}
@@ -520,6 +568,13 @@ export default function HomePage() {
                 capture={capture}
                 enabled={typingEnabled}
                 finished={isRunFinished}
+              />
+
+              <BeginnerGuide
+                typingLanguageCode={typingLanguageCode}
+                mode={mode}
+                onFocusPrompt={focusTypingSoon}
+                canFocusPrompt={typingEnabled && !isRunFinished}
               />
             </div>
 

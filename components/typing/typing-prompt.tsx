@@ -25,7 +25,10 @@ function renderCharacter(character: string) {
 }
 
 function caretClassName(mode: TypingPromptMode) {
-  return mode === "code" ? "top-0 h-6" : "top-0.5 h-8";
+  // Use em-based sizing so the caret follows the current font size and stays visually centered.
+  return mode === "code"
+    ? "top-1/2 -translate-y-1/2 h-[1.02em]"
+    : "top-1/2 -translate-y-1/2 h-[0.96em]";
 }
 
 function PromptText({ text, statuses, index, mode, capture, enabled, finished }: TypingPromptProps) {
@@ -34,7 +37,7 @@ function PromptText({ text, statuses, index, mode, capture, enabled, finished }:
   const sectionClassName =
     mode === "code"
       ? "relative min-h-[12.5rem] overflow-auto rounded-xl border bg-background/55 p-4 pr-32 shadow-inner shadow-black/5 font-mono text-base leading-7 tracking-normal whitespace-pre [tab-size:2]"
-      : "relative min-h-[9.5rem] rounded-xl border bg-background/55 p-4 pr-32 text-2xl leading-relaxed tracking-wide whitespace-pre-wrap shadow-inner shadow-black/5 md:min-h-[10.5rem]";
+      : "relative min-h-[7.5rem] rounded-lg px-2 py-2 pr-28 text-[1.9rem] leading-relaxed tracking-wide whitespace-pre-wrap text-muted-foreground md:min-h-[8.5rem] md:text-[2.35rem]";
 
   const handleMouseDown = (event: MouseEvent<HTMLElement>) => {
     if (!enabled) return;
@@ -52,7 +55,7 @@ function PromptText({ text, statuses, index, mode, capture, enabled, finished }:
       />
 
       {showFocusHint && (
-        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full border bg-background/90 px-2 py-1 text-xs text-muted-foreground">
+        <div className="pointer-events-none absolute right-2 top-2 z-10 rounded-full border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
           Click to focus
         </div>
       )}
