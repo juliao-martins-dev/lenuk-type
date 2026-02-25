@@ -1,25 +1,21 @@
 import { cn } from "@/lib/utils";
 
-type SelectOption = {
-  readonly label: string;
-  readonly value: string;
-};
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  options: readonly SelectOption[];
+  options: Array<{ label: string; value: string }>;
 }
 
 export function Select({ className, options, ...props }: SelectProps) {
   return (
     <select
       className={cn(
-        "h-9 rounded-md border border-border/90 bg-card px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "h-9 rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
       {...props}
     >
       {options.map((option) => (
-        <option key={option.value} value={option.value} className="bg-card text-foreground">
+        <option key={option.value} value={option.value}>
           {option.label}
         </option>
       ))}
