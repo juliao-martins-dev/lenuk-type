@@ -44,6 +44,7 @@ function getUserName() {
   return localStorage.getItem("lenuk-user-name") ?? "";
 }
 
+
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
@@ -71,6 +72,7 @@ export default function HomePage() {
     submittedRef.current = true;
     setSaveStatus("saving");
     setShowCelebration(true);
+    
     window.setTimeout(() => setShowCelebration(false), 2400);
 
     const payload = {

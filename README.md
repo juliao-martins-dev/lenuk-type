@@ -135,4 +135,3 @@ Lenuk Type is built to make typing practice feel like a modern dev tool:
 
 If someone visits this repo, they should instantly feel:
 > **clean architecture. fast product. serious execution.**
-

@@ -23,6 +23,7 @@ export interface EngineSnapshot {
 
 type Listener = () => void;
 
+
 export class TypingEngine {
   private listeners = new Set<Listener>();
   private timer: NodeJS.Timeout | null = null;

@@ -42,6 +42,7 @@ export default function LeaderboardPage() {
 
     load();
     const id = setInterval(load, 5000);
+
     return () => {
       active = false;
       clearInterval(id);
@@ -63,7 +64,6 @@ export default function LeaderboardPage() {
           </div>
 
           <div className="overflow-auto rounded border">
-            <table className="w-full min-w-[800px] text-left text-sm">
               <thead className="bg-muted/30">
                 <tr>
                   <Th>#</Th>

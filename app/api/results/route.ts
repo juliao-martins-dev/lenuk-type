@@ -4,6 +4,7 @@ import { getResultsFromSheetDB, postResultToSheetDB, type TypingResultRow } from
 
 const REQUIRED_FIELDS = ["userId", "mode", "difficulty", "durationSeconds", "wpm", "rawWpm", "accuracy", "errors", "promptId"];
 
+
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -12,6 +13,7 @@ function toNumber(value: unknown, fallback = 0) {
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
+
 
     for (const field of REQUIRED_FIELDS) {
       if (payload[field] === undefined || payload[field] === null || payload[field] === "") {
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
     const result = await postResultToSheetDB(row);
     return NextResponse.json({ success: true, row, sheetdb: result });
   } catch (error) {
+
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
   }
 }

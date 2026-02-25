@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DurationSeconds, EngineSnapshot, TypingEngine } from "@/lib/engine/typing-engine";
 
