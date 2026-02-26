@@ -5,3 +5,4 @@ npm-debug.log*
 *.tsbuildinfo
 .env*
 !.env.example
+supabase_info.txt

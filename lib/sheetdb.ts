@@ -77,6 +77,84 @@ let cachedResults: TypingResultRow[] | null = null;
 let cachedResultsAt = 0;
 let inFlightGetResults: Promise<TypingResultRow[]> | null = null;
 
+type ResultsBackendKind = "unknown" | "cache" | "postgres" | "supabase-rest";
+
+interface ResultsBackendDiagnostics {
+  table: string;
+  cacheTtlMs: number;
+  pgConfigured: boolean;
+  supabaseUrlConfigured: boolean;
+  supabaseKeyConfigured: boolean;
+  lastGetBackend: ResultsBackendKind;
+  lastPostBackend: ResultsBackendKind;
+  lastGetError: string | null;
+  lastPostError: string | null;
+  lastPgGetFallbackError: string | null;
+  lastPgPostFallbackError: string | null;
+  lastGetAt: string | null;
+  lastPostAt: string | null;
+  lastVisibleRowCount: number | null;
+}
+
+const backendDiagnostics: ResultsBackendDiagnostics = {
+  table: SUPABASE_RESULTS_TABLE,
+  cacheTtlMs: SUPABASE_GET_CACHE_TTL_MS,
+  pgConfigured: Boolean(SUPABASE_DB_URL),
+  supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+  supabaseKeyConfigured: Boolean(
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+      process.env.SUPABASE_ANON_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+  ),
+  lastGetBackend: "unknown",
+  lastPostBackend: "unknown",
+  lastGetError: null,
+  lastPostError: null,
+  lastPgGetFallbackError: null,
+  lastPgPostFallbackError: null,
+  lastGetAt: null,
+  lastPostAt: null,
+  lastVisibleRowCount: null
+};
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function markGetSuccess(backend: ResultsBackendKind, visibleRows: number) {
+  backendDiagnostics.lastGetBackend = backend;
+  backendDiagnostics.lastGetError = null;
+  backendDiagnostics.lastGetAt = nowIso();
+  backendDiagnostics.lastVisibleRowCount = visibleRows;
+}
+
+function markPostSuccess(backend: ResultsBackendKind) {
+  backendDiagnostics.lastPostBackend = backend;
+  backendDiagnostics.lastPostError = null;
+  backendDiagnostics.lastPostAt = nowIso();
+}
+
+function markGetError(error: unknown) {
+  backendDiagnostics.lastGetError = describeError(error);
+  backendDiagnostics.lastGetAt = nowIso();
+}
+
+function markPostError(error: unknown) {
+  backendDiagnostics.lastPostError = describeError(error);
+  backendDiagnostics.lastPostAt = nowIso();
+}
+
+export function getResultsBackendDiagnostics() {
+  return {
+    ...backendDiagnostics,
+    cachedResultsCount: cachedResults?.length ?? 0,
+    cachedResultsAt: cachedResultsAt > 0 ? new Date(cachedResultsAt).toISOString() : null,
+    cacheAgeMs: cachedResultsAt > 0 ? Math.max(0, Date.now() - cachedResultsAt) : null,
+    hasInFlightGet: inFlightGetResults !== null
+  };
+}
+
 function describeError(error: unknown) {
   if (!(error instanceof Error)) return "Unknown error";
 
@@ -284,7 +362,9 @@ async function postResultViaSupabaseRest(row: TypingResultRow) {
     throw new Error(`Supabase REST POST failed: ${error.message}`);
   }
 
-  return Array.isArray(data) ? data.map((entry) => fromSupabaseRestRow(entry)) : [];
+  const mapped = Array.isArray(data) ? data.map((entry) => fromSupabaseRestRow(entry)) : [];
+  markPostSuccess("supabase-rest");
+  return mapped;
 }
 
 async function getResultsViaSupabaseRest() {
@@ -304,61 +384,71 @@ async function getResultsViaSupabaseRest() {
     throw new Error(`Supabase REST GET failed: ${error.message}`);
   }
 
-  return Array.isArray(data) ? data.map((entry) => fromSupabaseRestRow(entry)) : [];
+  const mapped = Array.isArray(data) ? data.map((entry) => fromSupabaseRestRow(entry)) : [];
+  markGetSuccess("supabase-rest", mapped.length);
+  return mapped;
 }
 
 // Legacy export names are preserved so the API route does not need a broad rename.
 export async function postResultToSheetDB(row: TypingResultRow) {
-  let insertedRows: TypingResultRow[];
+  try {
+    let insertedRows: TypingResultRow[];
 
-  if (SUPABASE_DB_URL) {
-    try {
-      const result = await runQuery<SupabaseDbRow>(
-        `insert into ${RESULTS_TABLE_SQL}
-          (id, created_at, player, mode, difficulty, duration_seconds, wpm, raw_wpm, accuracy, prompt_id, metadata, country)
-         values
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-         returning
-          id, created_at, player, mode, difficulty, duration_seconds, wpm, raw_wpm, accuracy, prompt_id, metadata, country`,
-        [
-          row.id,
-          row.createdAt,
-          row.player,
-          row.mode,
-          row.difficulty,
-          row.durationSeconds,
-          row.wpm,
-          row.rawWpm,
-          row.accuracy,
-          row.promptId,
-          toStoredMetadata(row),
-          row.country || null
-        ],
-        SUPABASE_POST_TIMEOUT_MS
-      );
+    if (SUPABASE_DB_URL) {
+      try {
+        const result = await runQuery<SupabaseDbRow>(
+          `insert into ${RESULTS_TABLE_SQL}
+            (id, created_at, player, mode, difficulty, duration_seconds, wpm, raw_wpm, accuracy, prompt_id, metadata, country)
+           values
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           returning
+            id, created_at, player, mode, difficulty, duration_seconds, wpm, raw_wpm, accuracy, prompt_id, metadata, country`,
+          [
+            row.id,
+            row.createdAt,
+            row.player,
+            row.mode,
+            row.difficulty,
+            row.durationSeconds,
+            row.wpm,
+            row.rawWpm,
+            row.accuracy,
+            row.promptId,
+            toStoredMetadata(row),
+            row.country || null
+          ],
+          SUPABASE_POST_TIMEOUT_MS
+        );
 
-      insertedRows = result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow));
-    } catch (error) {
-      if (!isPgConnectivityError(error)) {
-        throw new Error(`Supabase Postgres POST failed: ${describeError(error)}`);
+        insertedRows = result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow));
+        markPostSuccess("postgres");
+      } catch (error) {
+        if (!isPgConnectivityError(error)) {
+          throw new Error(`Supabase Postgres POST failed: ${describeError(error)}`);
+        }
+
+        backendDiagnostics.lastPgPostFallbackError = describeError(error);
+        console.warn("Supabase Postgres POST unavailable, falling back to Supabase REST", error);
+        insertedRows = await postResultViaSupabaseRest(row);
       }
-
-      console.warn("Supabase Postgres POST unavailable, falling back to Supabase REST", error);
+    } else {
       insertedRows = await postResultViaSupabaseRest(row);
     }
-  } else {
-    insertedRows = await postResultViaSupabaseRest(row);
+
+    cachedResults = null;
+    cachedResultsAt = 0;
+
+    return insertedRows;
+  } catch (error) {
+    markPostError(error);
+    throw error;
   }
-
-  cachedResults = null;
-  cachedResultsAt = 0;
-
-  return insertedRows;
 }
 
 export async function getResultsFromSheetDB() {
   const now = Date.now();
   if (cachedResults && now - cachedResultsAt < SUPABASE_GET_CACHE_TTL_MS) {
+    markGetSuccess("cache", cachedResults.length);
     return cachedResults;
   }
 
@@ -380,11 +470,13 @@ export async function getResultsFromSheetDB() {
             );
 
             normalized = result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow));
+            markGetSuccess("postgres", normalized.length);
           } catch (error) {
             if (!isPgConnectivityError(error)) {
               throw new Error(`Supabase Postgres GET failed: ${describeError(error)}`);
             }
 
+            backendDiagnostics.lastPgGetFallbackError = describeError(error);
             console.warn("Supabase Postgres GET unavailable, falling back to Supabase REST", error);
             normalized = await getResultsViaSupabaseRest();
           }
@@ -401,6 +493,7 @@ export async function getResultsFromSheetDB() {
           return cachedResults;
         }
 
+        markGetError(error);
         throw new Error(describeError(error));
       }
     })().finally(() => {
