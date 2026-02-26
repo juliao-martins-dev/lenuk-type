@@ -36,6 +36,7 @@ const difficultyOptions = [
   { label: "Medium", value: "medium" },
   { label: "Hard", value: "hard" }
 ] as const;
+type DifficultyLevel = (typeof difficultyOptions)[number]["value"];
 
 const textWordCountOptions = [
   { label: "25w", value: "25" },
@@ -55,7 +56,7 @@ const supportedTypingLanguageCodes = new Set<SupportedLanguageCode>(
 );
 const supportedModes = new Set<"text" | "code">(["text", "code"]);
 const supportedDurations = new Set<DurationSeconds>(durationOptions.map((option) => option.value));
-const supportedDifficulties = new Set<string>(difficultyOptions.map((option) => option.value));
+const supportedDifficulties = new Set<DifficultyLevel>(difficultyOptions.map((option) => option.value));
 const supportedTextWordCounts = new Set<number>(textWordCountOptions.map((option) => Number(option.value)));
 const DEFAULT_TYPING_LANGUAGE_CODE: SupportedLanguageCode = "tet-TL";
 const DEFAULT_TYPING_WORD_COUNT = 25;
@@ -83,6 +84,10 @@ interface DifficultyContentSettings {
   numbers: boolean;
   punctuationRate?: number;
   numbersRate?: number;
+}
+
+function isDifficultyLevel(value: string): value is DifficultyLevel {
+  return supportedDifficulties.has(value as DifficultyLevel);
 }
 
 function createReplaySignature(snapshot: EngineSnapshot) {
@@ -146,17 +151,17 @@ function getTypingDuration() {
   return supportedDurations.has(value) ? value : 30;
 }
 
-function getTypingDifficulty() {
+function getTypingDifficulty(): DifficultyLevel {
   if (typeof window === "undefined") return "easy";
   const value = localStorage.getItem("lenuk-typing-difficulty") ?? "easy";
-  return supportedDifficulties.has(value) ? value : "easy";
+  return isDifficultyLevel(value) ? value : "easy";
 }
 
-function toGeneratorDifficulty(difficulty: string): "common" | "mixed" {
+function toGeneratorDifficulty(difficulty: DifficultyLevel): "common" | "mixed" {
   return difficulty === "easy" ? "common" : "mixed";
 }
 
-function getDifficultyContentSettings(difficulty: string): DifficultyContentSettings {
+function getDifficultyContentSettings(difficulty: DifficultyLevel): DifficultyContentSettings {
   if (difficulty === "medium") {
     return {
       generatorDifficulty: "mixed",
@@ -192,7 +197,7 @@ function getTypingWordCount() {
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
-  const [difficulty, setDifficulty] = useState("easy");
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy");
   const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_TYPING_LANGUAGE_CODE);
   const [textWordCount, setTextWordCount] = useState<number>(DEFAULT_TYPING_WORD_COUNT);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -417,16 +422,24 @@ export default function HomePage() {
     window.requestAnimationFrame(() => focusTypingInput());
   };
 
-  const resetRunUiState = () => {
+  const clearReplayTimeouts = () => {
     for (const timeoutId of replayTimeoutsRef.current) {
       window.clearTimeout(timeoutId);
     }
     replayTimeoutsRef.current = [];
+  };
+
+  const resetReplayCaptureTracker = () => {
     replayCaptureRef.current = {
-      text: currentText,
+      text: "",
       frames: [],
       lastSignature: null
     };
+  };
+
+  const resetRunUiState = () => {
+    clearReplayTimeouts();
+    resetReplayCaptureTracker();
     setReplayView(null);
     setCompletedReplayRun(null);
     submittedRef.current = false;
@@ -456,10 +469,7 @@ export default function HomePage() {
   const handleReplay = () => {
     if (!completedReplayRun || completedReplayRun.text !== snapshot.text || completedReplayRun.frames.length === 0) return;
 
-    for (const timeoutId of replayTimeoutsRef.current) {
-      window.clearTimeout(timeoutId);
-    }
-    replayTimeoutsRef.current = [];
+    clearReplayTimeouts();
     blurTypingInput();
 
     const frames = completedReplayRun.frames;
@@ -482,7 +492,7 @@ export default function HomePage() {
     }
 
     const endTimeoutId = window.setTimeout(() => {
-      replayTimeoutsRef.current = [];
+      clearReplayTimeouts();
       setReplayView(null);
     }, (frames[frames.length - 1]?.atMs ?? 0) + 150);
     replayTimeoutsRef.current.push(endTimeoutId);
@@ -664,7 +674,11 @@ export default function HomePage() {
                     aria-hidden
                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_92%_14%,hsl(var(--primary)/0.06),transparent_26%)]"
                   />
-                  <div className="no-scrollbar relative flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden">
+                  <div
+                    className="no-scrollbar relative flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden"
+                    tabIndex={0}
+                    aria-label="Typing option controls"
+                  >
                     <Select
                       className="shrink-0 max-w-[170px]"
                       value={typingLanguageCode}
@@ -701,6 +715,7 @@ export default function HomePage() {
                       aria-label="Difficulty"
                       options={difficultyOptions}
                       onChange={(event) => {
+                        if (!isDifficultyLevel(event.target.value)) return;
                         resetRunUiState();
                         localStorage.setItem("lenuk-typing-difficulty", event.target.value);
                         setDifficulty(event.target.value);
