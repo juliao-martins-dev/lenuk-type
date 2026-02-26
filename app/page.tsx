@@ -19,7 +19,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds, type EngineSnapshot } from "@/lib/engine/typing-engine";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
-import { DEFAULT_LANGUAGE_CODE, listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
+import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
 
 const CODE_SAMPLE_TEXT =
@@ -57,6 +57,8 @@ const supportedModes = new Set<"text" | "code">(["text", "code"]);
 const supportedDurations = new Set<DurationSeconds>(durationOptions.map((option) => option.value));
 const supportedDifficulties = new Set<string>(difficultyOptions.map((option) => option.value));
 const supportedTextWordCounts = new Set<number>(textWordCountOptions.map((option) => Number(option.value)));
+const DEFAULT_TYPING_LANGUAGE_CODE: SupportedLanguageCode = "tet-TL";
+const DEFAULT_TYPING_WORD_COUNT = 25;
 
 interface ReplayFrame {
   atMs: number;
@@ -119,9 +121,9 @@ function isSupportedTypingLanguageCode(value: string): value is SupportedLanguag
 }
 
 function getTypingLanguageCode() {
-  if (typeof window === "undefined") return DEFAULT_LANGUAGE_CODE;
+  if (typeof window === "undefined") return DEFAULT_TYPING_LANGUAGE_CODE;
   const value = localStorage.getItem("lenuk-typing-language");
-  return value && isSupportedTypingLanguageCode(value) ? value : DEFAULT_LANGUAGE_CODE;
+  return value && isSupportedTypingLanguageCode(value) ? value : DEFAULT_TYPING_LANGUAGE_CODE;
 }
 
 function getTypingMode() {
@@ -147,17 +149,17 @@ function toGeneratorDifficulty(difficulty: string): "common" | "mixed" {
 }
 
 function getTypingWordCount() {
-  if (typeof window === "undefined") return 60;
+  if (typeof window === "undefined") return DEFAULT_TYPING_WORD_COUNT;
   const value = Number(localStorage.getItem("lenuk-typing-word-count"));
-  return supportedTextWordCounts.has(value) ? value : 60;
+  return supportedTextWordCounts.has(value) ? value : DEFAULT_TYPING_WORD_COUNT;
 }
 
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState("easy");
-  const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_LANGUAGE_CODE);
-  const [textWordCount, setTextWordCount] = useState<number>(60);
+  const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_TYPING_LANGUAGE_CODE);
+  const [textWordCount, setTextWordCount] = useState<number>(DEFAULT_TYPING_WORD_COUNT);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [userName, setUserName] = useState("");
   const [userCountry, setUserCountry] = useState("");
