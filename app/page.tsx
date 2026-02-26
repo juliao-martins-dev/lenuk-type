@@ -360,6 +360,33 @@ export default function HomePage() {
   }, [focusTypingInput, typingEnabled]);
 
   useEffect(() => {
+    if (!typingEnabled || isRunFinished || isReplaying || capture.isFocused) return;
+
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("[role='dialog']") ||
+          ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))
+      ) {
+        return;
+      }
+
+      if (event.key === "Tab") return;
+
+      event.preventDefault();
+      focusTypingInput();
+    };
+
+    window.addEventListener("keydown", handleWindowKeyDown);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+  }, [capture.isFocused, focusTypingInput, isReplaying, isRunFinished, typingEnabled]);
+
+  useEffect(() => {
     if (!snapshot.metrics.finished) return;
     blurTypingInput();
   }, [blurTypingInput, snapshot.metrics.finished]);

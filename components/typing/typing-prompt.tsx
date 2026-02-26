@@ -34,6 +34,7 @@ function caretClassName(mode: TypingPromptMode) {
 function PromptText({ text, statuses, index, mode, capture, enabled, finished }: TypingPromptProps) {
   const characters = useMemo(() => Array.from(text), [text]);
   const showFocusHint = !capture.isFocused && enabled && !finished;
+  const shouldBlurPrompt = showFocusHint;
   const sectionClassName =
     mode === "code"
       ? "relative min-h-[12.5rem] overflow-auto rounded-xl border bg-background/55 p-4 pr-32 shadow-inner shadow-black/5 font-mono text-base leading-7 tracking-normal whitespace-pre [tab-size:2]"
@@ -54,61 +55,70 @@ function PromptText({ text, statuses, index, mode, capture, enabled, finished }:
         className="absolute left-4 top-4 h-px w-px opacity-0"
       />
 
-      {showFocusHint && (
-        <div className="pointer-events-none absolute right-2 top-2 z-10 rounded-full border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-          Click to focus
-        </div>
-      )}
+      <div
+        className={`transition-[filter,opacity] duration-200 ${
+          shouldBlurPrompt ? "blur-[5px] opacity-40 saturate-50" : "blur-0 opacity-100 saturate-100"
+        }`}
+        aria-hidden={showFocusHint ? true : undefined}
+      >
+        {characters.map((character, charIndex) => {
+          const status = statuses[charIndex];
+          const active = charIndex === index;
+          const showSpaceMarker = character === " " && (active || status === -1);
 
-      {characters.map((character, charIndex) => {
-        const status = statuses[charIndex];
-        const active = charIndex === index;
-        const showSpaceMarker = character === " " && (active || status === -1);
+          return (
+            <span
+              key={`${charIndex}-${character}`}
+              className={
+                active
+                  ? "relative text-foreground"
+                  : status === 1
+                    ? "text-foreground"
+                    : status === -1
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+              }
+            >
+              {active && (
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute -left-[1px] w-0.5 rounded-full bg-primary/90 ${
+                    capture.isFocused ? "animate-pulse" : "opacity-50"
+                  } ${caretClassName(mode)}`}
+                />
+              )}
+              {showSpaceMarker && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[0.7em] text-current"
+                >
+                  {"\u00B7"}
+                </span>
+              )}
+              {renderCharacter(character)}
+            </span>
+          );
+        })}
 
-        return (
-          <span
-            key={`${charIndex}-${character}`}
-            className={
-              active
-                ? "relative text-foreground"
-                : status === 1
-                  ? "text-foreground"
-                  : status === -1
-                    ? "text-destructive"
-                    : "text-muted-foreground"
-            }
-          >
-            {active && (
-              <span
-                aria-hidden
-                className={`pointer-events-none absolute -left-[1px] w-0.5 rounded-full bg-primary/90 ${
-                  capture.isFocused ? "animate-pulse" : "opacity-50"
-                } ${caretClassName(mode)}`}
-              />
-            )}
-            {showSpaceMarker && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[0.7em] text-current"
-              >
-                {"\u00B7"}
-              </span>
-            )}
-            {renderCharacter(character)}
+        {index >= characters.length && (
+          <span className="relative inline-block align-baseline">
+            <span
+              aria-hidden
+              className={`pointer-events-none absolute -left-[1px] w-0.5 rounded-full bg-primary/90 ${
+                capture.isFocused ? "animate-pulse" : "opacity-50"
+              } ${caretClassName(mode)}`}
+            />
+            {"\u00A0"}
           </span>
-        );
-      })}
+        )}
+      </div>
 
-      {index >= characters.length && (
-        <span className="relative inline-block align-baseline">
-          <span
-            aria-hidden
-            className={`pointer-events-none absolute -left-[1px] w-0.5 rounded-full bg-primary/90 ${
-              capture.isFocused ? "animate-pulse" : "opacity-50"
-            } ${caretClassName(mode)}`}
-          />
-          {"\u00A0"}
-        </span>
+      {showFocusHint && (
+        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
+          <div className="rounded-xl border bg-background/85 px-4 py-2 text-sm font-medium text-foreground shadow-lg backdrop-blur">
+            Click here or press any key to focus
+          </div>
+        </div>
       )}
     </section>
   );
