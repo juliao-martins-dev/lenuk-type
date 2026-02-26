@@ -49,6 +49,15 @@ body {
     radial-gradient(circle at 90% 0%, hsl(var(--primary) / 0.05), transparent 35%);
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes leaderboard-button-pulse {
   0%,
   100% {
