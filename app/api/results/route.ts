@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getResultsFromSheetDB, postResultToSheetDB, type TypingResultRow } from "@/lib/sheetdb";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const REQUIRED_FIELDS = [
   "userId",
@@ -18,6 +19,9 @@ const REQUIRED_FIELDS = [
 const ALLOWED_MODES = new Set(["text", "code"]);
 const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 const ALLOWED_DURATIONS = new Set([15, 30, 60]);
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate"
+} as const;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
 
     for (const field of REQUIRED_FIELDS) {
       if (payload[field] === undefined || payload[field] === null || payload[field] === "") {
-        return NextResponse.json({ error: `Missing field: ${field}` }, { status: 400 });
+        return NextResponse.json({ error: `Missing field: ${field}` }, { status: 400, headers: NO_STORE_HEADERS });
       }
     }
 
@@ -110,22 +114,22 @@ export async function POST(request: Request) {
           : "";
 
     if (!player) {
-      return NextResponse.json({ error: "Missing field: player" }, { status: 400 });
+      return NextResponse.json({ error: "Missing field: player" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const mode = sanitizeString(payload.mode, 16);
     if (!ALLOWED_MODES.has(mode)) {
-      return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid mode" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const difficulty = sanitizeString(payload.difficulty, 16);
     if (!ALLOWED_DIFFICULTIES.has(difficulty)) {
-      return NextResponse.json({ error: "Invalid difficulty" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid difficulty" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const durationSeconds = Math.trunc(toNumber(payload.durationSeconds));
     if (!ALLOWED_DURATIONS.has(durationSeconds)) {
-      return NextResponse.json({ error: "Invalid durationSeconds" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid durationSeconds" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const row: TypingResultRow = {
@@ -146,14 +150,17 @@ export async function POST(request: Request) {
     };
 
     if (!row.userId || !row.promptId) {
-      return NextResponse.json({ error: "Invalid identifiers" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid identifiers" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const result = await postResultToSheetDB(row);
-    return NextResponse.json({ success: true, row, sheetdb: result });
+    return NextResponse.json({ success: true, row, supabase: result }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("POST /api/results failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }
 
@@ -172,7 +179,9 @@ export async function GET() {
         }
 
         return {
-          ...entry,
+          id: entry.id,
+          createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
+          userId: typeof entry.userId === "string" ? entry.userId : "",
           userName:
             typeof entry.player === "string" && entry.player
               ? entry.player
@@ -185,6 +194,8 @@ export async function GET() {
               : typeof metadataObj.country === "string"
                 ? metadataObj.country.toUpperCase()
                 : "",
+          mode: typeof entry.mode === "string" ? entry.mode : "",
+          difficulty: typeof entry.difficulty === "string" ? entry.difficulty : "",
           wpm: toNumber(entry.wpm),
           rawWpm: toNumber(entry.rawWpm),
           accuracy: toNumber(entry.accuracy),
@@ -235,9 +246,12 @@ export async function GET() {
       })
       .slice(0, 50);
 
-    return NextResponse.json({ results: deduped });
+    return NextResponse.json({ results: deduped }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("GET /api/results failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }
