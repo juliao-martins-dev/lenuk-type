@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { getResultsFromSheetDB, postResultToSheetDB, type TypingResultRow } from "@/lib/sheetdb";
+import { getResultsFromSupabase, postResultToSupabase, type TypingResultRow } from "@/lib/supabase-results";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid identifiers" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    const result = await postResultToSheetDB(row);
+    const result = await postResultToSupabase(row);
     return NextResponse.json({ success: true, row, supabase: result }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("POST /api/results failed", error);
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const results = await getResultsFromSheetDB();
+    const results = await getResultsFromSupabase();
     const normalized: LeaderboardResult[] = (Array.isArray(results) ? results : [])
       .map((entry) => {
         let metadataObj: Record<string, unknown> = {};

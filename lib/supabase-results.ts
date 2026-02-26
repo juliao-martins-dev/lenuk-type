@@ -151,7 +151,7 @@ export function getResultsBackendDiagnostics() {
     cachedResultsCount: cachedResults?.length ?? 0,
     cachedResultsAt: cachedResultsAt > 0 ? new Date(cachedResultsAt).toISOString() : null,
     cacheAgeMs: cachedResultsAt > 0 ? Math.max(0, Date.now() - cachedResultsAt) : null,
-    hasInFlightGet: inFlightGetResults !== null
+  hasInFlightGet: inFlightGetResults !== null
   };
 }
 
@@ -172,6 +172,12 @@ function toStringValue(value: unknown, fallback = "") {
   if (typeof value === "string") return value;
   if (value instanceof Date) return value.toISOString();
   return fallback;
+}
+
+function toNormalizedToken(value: unknown, options?: { uppercase?: boolean }) {
+  const raw = toStringValue(value).trim();
+  if (!raw) return "";
+  return options?.uppercase ? raw.toUpperCase() : raw.toLowerCase();
 }
 
 function toJsonRecord(value: unknown) {
@@ -225,8 +231,8 @@ function fromDbRow(row: SupabaseDbRow): TypingResultRow {
     createdAt: toStringValue(row.created_at),
     userId,
     player: toStringValue(row.player),
-    mode: toStringValue(row.mode),
-    difficulty: toStringValue(row.difficulty),
+    mode: toNormalizedToken(row.mode),
+    difficulty: toNormalizedToken(row.difficulty),
     durationSeconds: toNumber(row.duration_seconds),
     wpm: toNumber(row.wpm),
     rawWpm: toNumber(row.raw_wpm),
@@ -234,7 +240,7 @@ function fromDbRow(row: SupabaseDbRow): TypingResultRow {
     errors,
     promptId: toStringValue(row.prompt_id),
     metadata: metadata.raw,
-    country: toStringValue(row.country)
+    country: toNormalizedToken(row.country, { uppercase: true })
   };
 }
 
@@ -389,8 +395,7 @@ async function getResultsViaSupabaseRest() {
   return mapped;
 }
 
-// Legacy export names are preserved so the API route does not need a broad rename.
-export async function postResultToSheetDB(row: TypingResultRow) {
+export async function postResultToSupabase(row: TypingResultRow) {
   try {
     let insertedRows: TypingResultRow[];
 
@@ -445,7 +450,7 @@ export async function postResultToSheetDB(row: TypingResultRow) {
   }
 }
 
-export async function getResultsFromSheetDB() {
+export async function getResultsFromSupabase() {
   const now = Date.now();
   if (cachedResults && now - cachedResultsAt < SUPABASE_GET_CACHE_TTL_MS) {
     markGetSuccess("cache", cachedResults.length);

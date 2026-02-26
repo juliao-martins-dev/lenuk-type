@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getResultsBackendDiagnostics, getResultsFromSheetDB, postResultToSheetDB } from "@/lib/sheetdb";
+import { getResultsBackendDiagnostics, getResultsFromSupabase, postResultToSupabase } from "@/lib/supabase-results";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,14 +13,14 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const probeWrite = url.searchParams.get("probeWrite") === "1";
-    const rows = await getResultsFromSheetDB();
+    const rows = await getResultsFromSupabase();
     const diagnostics = getResultsBackendDiagnostics();
     let writeProbe: { ok: boolean; error?: string; inserted?: number; testId?: string } | null = null;
 
     if (probeWrite) {
       const testId = randomUUID();
       try {
-        const inserted = await postResultToSheetDB({
+        const inserted = await postResultToSupabase({
           id: testId,
           createdAt: new Date().toISOString(),
           userId: `debug-probe:${testId}`,
