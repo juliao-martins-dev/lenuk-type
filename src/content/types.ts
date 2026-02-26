@@ -63,6 +63,8 @@ export interface BuildTestContentOptions {
   seed: string | number;
   punctuation: boolean;
   numbers: boolean;
+  punctuationRate?: number;
+  numbersRate?: number;
   allowRepeat?: boolean;
   difficulty?: WordDifficulty;
 }
@@ -77,4 +79,3 @@ export interface GeneratedTestContent {
   chars: string[];
   text: string;
 }
-

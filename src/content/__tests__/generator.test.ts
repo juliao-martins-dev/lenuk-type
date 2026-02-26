@@ -99,5 +99,38 @@ describe("content generator", () => {
       expect(/[,.;:!?]\S+[,.;:!?]$/.test(token)).toBe(false);
     }
   });
-});
 
+  it("adds exactly one number per word when numbersRate is 1", () => {
+    const words = ["hau", "ita", "nia", "sira", "tempu", "pratika"];
+    const { tokens } = applyToggles(words, {
+      punctuation: false,
+      numbers: true,
+      numbersRate: 1,
+      seed: "numbers-every-word"
+    });
+
+    const numberTokens = tokens.filter((token) => /^\d+$/.test(token));
+    const wordTokens = tokens.filter((token) => !/^\d+$/.test(token));
+
+    expect(numberTokens).toHaveLength(words.length);
+    expect(wordTokens).toHaveLength(words.length);
+  });
+
+  it("can generate hard-style streams with punctuation on every word plus numbers", () => {
+    const words = ["alpha", "beta", "gamma", "delta"];
+    const { tokens } = applyToggles(words, {
+      punctuation: true,
+      numbers: true,
+      punctuationRate: 1,
+      numbersRate: 1,
+      seed: "hard-style"
+    });
+
+    const wordTokens = tokens.filter((token) => /[A-Za-z]/.test(token));
+    const numberTokens = tokens.filter((token) => /^\d+$/.test(token));
+
+    expect(wordTokens).toHaveLength(words.length);
+    expect(numberTokens).toHaveLength(words.length);
+    expect(wordTokens.every((token) => /[.,?!;:]$/.test(token))).toBe(true);
+  });
+});

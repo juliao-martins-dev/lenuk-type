@@ -13,6 +13,8 @@ export interface UseTestContentOptions {
   seed?: string | number;
   punctuation: boolean;
   numbers: boolean;
+  punctuationRate?: number;
+  numbersRate?: number;
   allowRepeat?: boolean;
   difficulty?: WordDifficulty;
 }
@@ -35,6 +37,8 @@ function generateContentFromOptions(opts: UseTestContentOptions, generationIndex
     seed: composeSeed(baseSeed, generationIndex),
     punctuation: opts.punctuation,
     numbers: opts.numbers,
+    punctuationRate: opts.punctuationRate,
+    numbersRate: opts.numbersRate,
     allowRepeat: opts.allowRepeat,
     difficulty: opts.difficulty
   });
@@ -57,6 +61,8 @@ export function useTestContent(opts: UseTestContentOptions) {
     opts.seed,
     opts.punctuation,
     opts.numbers,
+    opts.punctuationRate,
+    opts.numbersRate,
     opts.allowRepeat,
     opts.difficulty
   ]);
@@ -72,6 +78,8 @@ export function useTestContent(opts: UseTestContentOptions) {
     opts.seed,
     opts.punctuation,
     opts.numbers,
+    opts.punctuationRate,
+    opts.numbersRate,
     opts.allowRepeat,
     opts.difficulty
   ]);
@@ -87,6 +95,8 @@ export function useTestContent(opts: UseTestContentOptions) {
           seed: nextSeed,
           punctuation: latestOptsRef.current.punctuation,
           numbers: latestOptsRef.current.numbers,
+          punctuationRate: latestOptsRef.current.punctuationRate,
+          numbersRate: latestOptsRef.current.numbersRate,
           allowRepeat: latestOptsRef.current.allowRepeat,
           difficulty: latestOptsRef.current.difficulty
         })

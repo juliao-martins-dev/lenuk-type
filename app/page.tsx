@@ -77,6 +77,14 @@ interface ReplayViewState {
   strokeVersion: number;
 }
 
+interface DifficultyContentSettings {
+  generatorDifficulty: "common" | "mixed";
+  punctuation: boolean;
+  numbers: boolean;
+  punctuationRate?: number;
+  numbersRate?: number;
+}
+
 function createReplaySignature(snapshot: EngineSnapshot) {
   return [
     snapshot.strokeVersion,
@@ -148,6 +156,33 @@ function toGeneratorDifficulty(difficulty: string): "common" | "mixed" {
   return difficulty === "easy" ? "common" : "mixed";
 }
 
+function getDifficultyContentSettings(difficulty: string): DifficultyContentSettings {
+  if (difficulty === "medium") {
+    return {
+      generatorDifficulty: "mixed",
+      punctuation: false,
+      numbers: true,
+      numbersRate: 1
+    };
+  }
+
+  if (difficulty === "hard") {
+    return {
+      generatorDifficulty: "mixed",
+      punctuation: true,
+      numbers: true,
+      punctuationRate: 1,
+      numbersRate: 1
+    };
+  }
+
+  return {
+    generatorDifficulty: toGeneratorDifficulty(difficulty),
+    punctuation: false,
+    numbers: false
+  };
+}
+
 function getTypingWordCount() {
   if (typeof window === "undefined") return DEFAULT_TYPING_WORD_COUNT;
   const value = Number(localStorage.getItem("lenuk-typing-word-count"));
@@ -185,17 +220,19 @@ export default function HomePage() {
   });
   const replayTimeoutsRef = useRef<number[]>([]);
 
-  const generatorDifficulty = useMemo(() => toGeneratorDifficulty(difficulty), [difficulty]);
+  const difficultyContentSettings = useMemo(() => getDifficultyContentSettings(difficulty), [difficulty]);
   const { content: generatedTextContent, regenerate: regenerateTextContent } = useTestContent({
     languageCode: typingLanguageCode,
     mode: "words",
     wordCount: textWordCount,
     duration,
     seed: `lenuk-type:${typingLanguageCode}:${difficulty}:${duration}:${textWordCount}`,
-    punctuation: false,
-    numbers: false,
+    punctuation: difficultyContentSettings.punctuation,
+    numbers: difficultyContentSettings.numbers,
+    punctuationRate: difficultyContentSettings.punctuationRate,
+    numbersRate: difficultyContentSettings.numbersRate,
     allowRepeat: true,
-    difficulty: generatorDifficulty
+    difficulty: difficultyContentSettings.generatorDifficulty
   });
   const currentText = useMemo(
     () => (mode === "text" ? generatedTextContent.text : CODE_SAMPLE_TEXT),
@@ -684,22 +721,30 @@ export default function HomePage() {
                       Restart
                     </Button>
                   </Tooltip>
+                  <Tooltip text={mode === "text" ? "Next content" : "Start next run"}>
+                    <Button variant="ghost" onClick={() => handleRestart({ regenerateText: mode === "text" })}>
+                      <ArrowRight className="mr-1 h-4 w-4" />
+                      Next
+                    </Button>
+                  </Tooltip>
                   <Link
                     href="/leaderboard"
-                    className="group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0"
+                    className="leaderboard-live-button group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0 motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
                     aria-label="Open leaderboard"
                   >
+                    <span aria-hidden className="leaderboard-live-aura absolute inset-0 rounded-md" />
                     <span
                       aria-hidden
                       className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]"
                     />
                     <span
                       aria-hidden
-                      className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-500 group-hover:translate-x-[260%]"
+                      className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-700 group-hover:translate-x-[290%] motion-safe:animate-[leaderboard-sheen_3.4s_ease-in-out_infinite]"
                     />
-                    <Trophy className="relative h-4 w-4" />
+                    <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
+                    <Trophy className="relative h-4 w-4 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
                     <span className="relative">Leaderboard</span>
-                    <span className="relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
+                    <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
                       Live
                     </span>
                   </Link>

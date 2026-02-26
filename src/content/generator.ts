@@ -152,12 +152,15 @@ export function applyToggles(words: string[], opts: ApplyTogglesOptions): Toggle
   const numbersRate = clampRate(opts.numbersRate, DEFAULT_NUMBERS_RATE);
   const rng = createRng(buildToggleSeed(words, opts));
   const tokens: string[] = [];
+  const forceOneNumberPerWord = opts.numbers && numbersRate >= 1;
 
   for (const rawWord of words) {
     const baseWord = sanitizeWordToken(rawWord);
     if (!baseWord) continue;
 
-    if (opts.numbers && rng() < numbersRate * 0.5) {
+    const placeNumberBeforeWord = forceOneNumberPerWord ? rng() < 0.4 : false;
+
+    if (opts.numbers && (forceOneNumberPerWord ? placeNumberBeforeWord : rng() < numbersRate * 0.5)) {
       tokens.push(buildNumberToken(rng));
     }
 
@@ -168,7 +171,7 @@ export function applyToggles(words: string[], opts: ApplyTogglesOptions): Toggle
 
     tokens.push(token);
 
-    if (opts.numbers && rng() < numbersRate * 0.5) {
+    if (opts.numbers && (forceOneNumberPerWord ? !placeNumberBeforeWord : rng() < numbersRate * 0.5)) {
       tokens.push(buildNumberToken(rng));
     }
   }
@@ -207,6 +210,8 @@ export function buildTestContent(opts: BuildTestContentOptions): GeneratedTestCo
   const { tokens } = applyToggles(words, {
     punctuation: opts.punctuation,
     numbers: opts.numbers,
+    punctuationRate: opts.punctuationRate,
+    numbersRate: opts.numbersRate,
     seed: opts.seed
   });
 
@@ -225,4 +230,3 @@ export function buildTestContent(opts: BuildTestContentOptions): GeneratedTestCo
 }
 
 export type { Rng };
-
