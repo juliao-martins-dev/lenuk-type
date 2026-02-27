@@ -19,6 +19,15 @@ const REQUIRED_FIELDS = [
 const ALLOWED_MODES = new Set(["text", "code"]);
 const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 const ALLOWED_DURATIONS = new Set([15, 30, 60]);
+const DIFFICULTY_WEIGHTS: Record<string, number> = {
+  easy: 1,
+  medium: 1.08,
+  hard: 1.16
+};
+const MAX_LEADERBOARD_RESULTS = Math.max(
+  1,
+  Number.parseInt(process.env.LEADERBOARD_MAX_RESULTS ?? "100", 10) || 100
+);
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate"
 } as const;
@@ -48,6 +57,16 @@ function normalizeCountry(value: unknown) {
   return /^[A-Z]{2}$/.test(normalized) ? normalized : "";
 }
 
+function normalizeMode(value: unknown) {
+  const normalized = sanitizeString(value, 16).toLowerCase();
+  return ALLOWED_MODES.has(normalized) ? normalized : "";
+}
+
+function normalizeDifficulty(value: unknown) {
+  const normalized = sanitizeString(value, 16).toLowerCase();
+  return ALLOWED_DIFFICULTIES.has(normalized) ? normalized : "";
+}
+
 function toSafeMetadataJson(value: unknown) {
   if (typeof value === "string") {
     return value.slice(0, 20000);
@@ -66,6 +85,15 @@ function toTimeMs(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function difficultyWeight(difficulty: string) {
+  return DIFFICULTY_WEIGHTS[difficulty] ?? 1;
+}
+
+function leaderboardScore(item: LeaderboardResult) {
+  const accuracyMultiplier = Math.min(1.03, Math.max(0.75, item.accuracy / 100));
+  return item.wpm * accuracyMultiplier * difficultyWeight(item.difficulty);
+}
+
 type LeaderboardResult = {
   id: string;
   createdAt: string;
@@ -82,10 +110,12 @@ type LeaderboardResult = {
 };
 
 function isBetterLeaderboardRun(candidate: LeaderboardResult, current: LeaderboardResult) {
-  if (candidate.wpm !== current.wpm) return candidate.wpm > current.wpm;
+  const scoreDiff = leaderboardScore(candidate) - leaderboardScore(current);
+  if (Math.abs(scoreDiff) > 0.001) return scoreDiff > 0;
   if (candidate.accuracy !== current.accuracy) return candidate.accuracy > current.accuracy;
-  if (candidate.rawWpm !== current.rawWpm) return candidate.rawWpm > current.rawWpm;
+  if (candidate.wpm !== current.wpm) return candidate.wpm > current.wpm;
   if (candidate.errors !== current.errors) return candidate.errors < current.errors;
+  if (candidate.rawWpm !== current.rawWpm) return candidate.rawWpm > current.rawWpm;
   return toTimeMs(candidate.createdAt) > toTimeMs(current.createdAt);
 }
 
@@ -187,15 +217,15 @@ export async function GET() {
               ? entry.player
               : typeof metadataObj.userName === "string"
                 ? metadataObj.userName
-                : entry.userId,
+                : "Anonymous",
           country:
             typeof entry.country === "string" && entry.country
-              ? entry.country.toUpperCase()
+              ? normalizeCountry(entry.country)
               : typeof metadataObj.country === "string"
-                ? metadataObj.country.toUpperCase()
+                ? normalizeCountry(metadataObj.country)
                 : "",
-          mode: typeof entry.mode === "string" ? entry.mode : "",
-          difficulty: typeof entry.difficulty === "string" ? entry.difficulty : "",
+          mode: normalizeMode(entry.mode),
+          difficulty: normalizeDifficulty(entry.difficulty),
           wpm: toNumber(entry.wpm),
           rawWpm: toNumber(entry.rawWpm),
           accuracy: toNumber(entry.accuracy),
@@ -204,7 +234,16 @@ export async function GET() {
         };
       })
       .filter((entry): entry is LeaderboardResult => {
-        return Boolean(entry && typeof entry.id === "string" && typeof entry.userId === "string");
+        return Boolean(
+          entry &&
+            typeof entry.id === "string" &&
+            entry.id &&
+            typeof entry.userId === "string" &&
+            entry.userId &&
+            ALLOWED_MODES.has(entry.mode) &&
+            ALLOWED_DIFFICULTIES.has(entry.difficulty) &&
+            ALLOWED_DURATIONS.has(entry.durationSeconds)
+        );
       });
 
     const latestProfileByUserId = new Map<string, { userName: string; country: string; timeMs: number }>();
@@ -244,7 +283,7 @@ export async function GET() {
         if (isBetterLeaderboardRun(b, a)) return 1;
         return 0;
       })
-      .slice(0, 50);
+      .slice(0, MAX_LEADERBOARD_RESULTS);
 
     return NextResponse.json({ results: deduped }, { headers: NO_STORE_HEADERS });
   } catch (error) {
