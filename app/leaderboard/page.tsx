@@ -27,6 +27,11 @@ type SortOption = "leaderboard" | "wpm" | "accuracy" | "latest";
 
 const POLL_INTERVAL_MS = 5000;
 const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+const DIFFICULTY_WEIGHTS: Record<string, number> = {
+  easy: 1,
+  medium: 1.08,
+  hard: 1.16
+};
 
 function formatTimestamp(value: string) {
   const date = new Date(value);
@@ -120,6 +125,28 @@ function optionLabel(option: string) {
   if (option === "latest") return "Latest";
   if (option === "accuracy") return "Accuracy";
   return option.charAt(0).toUpperCase() + option.slice(1);
+}
+
+function difficultyWeight(difficulty: string) {
+  return DIFFICULTY_WEIGHTS[difficulty] ?? 1;
+}
+
+function rankScore(item: LeaderboardItem) {
+  const accuracyMultiplier = Math.min(1.03, Math.max(0.75, item.accuracy / 100));
+  return item.wpm * accuracyMultiplier * difficultyWeight(item.difficulty);
+}
+
+function compareByLeaderboardRank(a: LeaderboardItem, b: LeaderboardItem) {
+  const scoreDiff = rankScore(b) - rankScore(a);
+  if (Math.abs(scoreDiff) > 0.001) return scoreDiff;
+
+  if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+  if (b.wpm !== a.wpm) return b.wpm - a.wpm;
+  if (difficultyWeight(b.difficulty) !== difficultyWeight(a.difficulty)) {
+    return difficultyWeight(b.difficulty) - difficultyWeight(a.difficulty);
+  }
+
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
 export default function LeaderboardPage() {
@@ -227,7 +254,9 @@ export default function LeaderboardPage() {
       return matchesQuery && matchesMode && matchesDifficulty;
     });
 
-    if (sortBy === "leaderboard") return filtered;
+    if (sortBy === "leaderboard") {
+      return [...filtered].sort(compareByLeaderboardRank);
+    }
 
     return [...filtered].sort((a, b) => {
       if (sortBy === "wpm") return b.wpm - a.wpm || b.accuracy - a.accuracy;
@@ -361,6 +390,7 @@ export default function LeaderboardPage() {
                 <p>
                   Showing {displayItems.length} of {items.length} entries
                 </p>
+                <p>Rank formula: WPM x accuracy x difficulty</p>
                 <p>Last sync: {lastUpdatedLabel}</p>
               </div>
             </div>
@@ -373,6 +403,7 @@ export default function LeaderboardPage() {
               const rank = index + 1;
               const playerName = item.userName || item.userId;
               const country = item.country ? countryName(item.country) : "";
+              const score = Math.round(rankScore(item) * 10) / 10;
 
               return (
                 <Card key={`podium-${item.id}`} className={`relative overflow-hidden shadow-lg ${podiumCardClasses(rank)}`}>
@@ -399,7 +430,7 @@ export default function LeaderboardPage() {
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <PodiumMetric label="WPM" value={item.wpm} />
                       <PodiumMetric label="Accuracy" value={`${item.accuracy}%`} />
-                      <PodiumMetric label="Errors" value={item.errors} />
+                      <PodiumMetric label="Score" value={score} />
                     </div>
                   </CardContent>
                 </Card>
@@ -448,6 +479,7 @@ export default function LeaderboardPage() {
                     const playerName = item.userName || item.userId;
                     const timestamp = formatTimestamp(item.createdAt);
                     const relative = formatRelativeTime(item.createdAt, now);
+                    const score = Math.round(rankScore(item) * 10) / 10;
 
                     return (
                       <article
@@ -476,6 +508,7 @@ export default function LeaderboardPage() {
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <InlineMetric label="Score" value={score} />
                           <InlineMetric label="Accuracy" value={`${item.accuracy}%`} />
                           <InlineMetric label="Raw WPM" value={item.rawWpm} />
                           <InlineMetric label="Errors" value={item.errors} />
@@ -515,6 +548,7 @@ export default function LeaderboardPage() {
                         const playerName = item.userName || item.userId;
                         const timestamp = formatTimestamp(item.createdAt);
                         const relative = formatRelativeTime(item.createdAt, now);
+                        const score = Math.round(rankScore(item) * 10) / 10;
                         const speedPercent =
                           stats.topWpm > 0 ? Math.max(7, Math.round((item.wpm / stats.topWpm) * 100)) : 0;
 
@@ -561,7 +595,7 @@ export default function LeaderboardPage() {
                                 <div className="ml-auto h-1.5 w-24 overflow-hidden rounded-full bg-muted">
                                   <span className="block h-full rounded-full bg-primary/80" style={{ width: `${speedPercent}%` }} />
                                 </div>
-                                <p className="text-right text-[11px] text-muted-foreground">Raw {item.rawWpm}</p>
+                                <p className="text-right text-[11px] text-muted-foreground">Raw {item.rawWpm} | Score {score}</p>
                               </div>
                             </Td>
 
