@@ -127,6 +127,11 @@ function optionLabel(option: string) {
   return option.charAt(0).toUpperCase() + option.slice(1);
 }
 
+function playerLabel(item: LeaderboardItem) {
+  const name = item.userName?.trim();
+  return name ? name : "Anonymous";
+}
+
 function difficultyWeight(difficulty: string) {
   return DIFFICULTY_WEIGHTS[difficulty] ?? 1;
 }
@@ -237,14 +242,13 @@ export default function LeaderboardPage() {
     const normalizedQuery = query.trim().toLowerCase();
 
     const filtered = items.filter((item) => {
-      const playerName = (item.userName || item.userId).toLowerCase();
+      const playerName = playerLabel(item).toLowerCase();
       const countryCode = item.country.toLowerCase();
       const country = item.country ? (countryName(item.country) ?? "").toLowerCase() : "";
 
       const matchesQuery =
         normalizedQuery.length === 0 ||
         playerName.includes(normalizedQuery) ||
-        item.userId.toLowerCase().includes(normalizedQuery) ||
         countryCode.includes(normalizedQuery) ||
         country.includes(normalizedQuery);
 
@@ -359,7 +363,7 @@ export default function LeaderboardPage() {
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search player, ID, or country"
+                    placeholder="Search player or country"
                     className="h-10 w-full rounded-lg border border-input/80 bg-background/80 pl-9 pr-3 text-sm outline-none transition focus-visible:border-primary/45 focus-visible:ring-2 focus-visible:ring-primary/20"
                   />
                 </label>
@@ -410,7 +414,7 @@ export default function LeaderboardPage() {
         {podiumItems.length > 0 ? (
           <div key={podiumKey} className="grid gap-3 md:grid-cols-3">
             {podiumItems.map(({ item, rank, score }) => {
-              const playerName = item.userName || item.userId;
+              const playerName = playerLabel(item);
               const country = item.country ? countryName(item.country) : "";
 
               return (
@@ -426,7 +430,7 @@ export default function LeaderboardPage() {
                         <p className="text-lg font-semibold leading-tight">{playerName}</p>
                         <div className="inline-flex max-w-full items-center gap-2 text-xs text-muted-foreground">
                           {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
-                          <span className="truncate">{country || item.userId}</span>
+                          <span className="truncate">{country || "Unknown country"}</span>
                         </div>
                       </div>
 
@@ -483,7 +487,7 @@ export default function LeaderboardPage() {
                 <div className="space-y-3 p-4 md:hidden">
                   {rankedItems.map(({ item, rank, score }) => {
                     const country = item.country ? countryName(item.country) : "";
-                    const playerName = item.userName || item.userId;
+                    const playerName = playerLabel(item);
                     const timestamp = formatTimestamp(item.createdAt);
                     const relative = formatRelativeTime(item.createdAt, now);
 
@@ -504,7 +508,7 @@ export default function LeaderboardPage() {
                             </div>
                             <div className="inline-flex max-w-full items-center gap-2 text-xs text-muted-foreground">
                               {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
-                              <span className="truncate">{country || item.userId}</span>
+                              <span className="truncate">{country || "Unknown country"}</span>
                             </div>
                           </div>
                           <div className="text-right">
@@ -550,7 +554,7 @@ export default function LeaderboardPage() {
                     <tbody>
                       {rankedItems.map(({ item, rank, score }) => {
                         const country = item.country ? countryName(item.country) : "";
-                        const playerName = item.userName || item.userId;
+                        const playerName = playerLabel(item);
                         const timestamp = formatTimestamp(item.createdAt);
                         const relative = formatRelativeTime(item.createdAt, now);
                         const speedPercent =
@@ -573,7 +577,6 @@ export default function LeaderboardPage() {
                                 </span>
                                 <div className="min-w-0">
                                   <p className="truncate font-medium text-foreground">{playerName}</p>
-                                  <p className="truncate text-xs text-muted-foreground">{item.userId}</p>
                                 </div>
                               </div>
                             </Td>
