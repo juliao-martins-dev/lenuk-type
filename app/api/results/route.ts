@@ -119,10 +119,6 @@ function isBetterLeaderboardRun(candidate: LeaderboardResult, current: Leaderboa
   return toTimeMs(candidate.createdAt) > toTimeMs(current.createdAt);
 }
 
-function leaderboardGroupKey(item: LeaderboardResult) {
-  return [item.userId, item.mode, item.difficulty, item.durationSeconds].join("|");
-}
-
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
@@ -246,38 +242,23 @@ export async function GET() {
         );
       });
 
-    const latestProfileByUserId = new Map<string, { userName: string; country: string; timeMs: number }>();
-    const bestByGroup = new Map<string, LeaderboardResult>();
+    const latestRunByUserId = new Map<string, LeaderboardResult>();
 
     for (const entry of normalized) {
-      const currentProfile = latestProfileByUserId.get(entry.userId);
-      const entryTimeMs = toTimeMs(entry.createdAt);
-      if (!currentProfile || entryTimeMs > currentProfile.timeMs) {
-        latestProfileByUserId.set(entry.userId, {
-          userName: entry.userName,
-          country: entry.country,
-          timeMs: entryTimeMs
-        });
+      const existing = latestRunByUserId.get(entry.userId);
+      if (!existing) {
+        latestRunByUserId.set(entry.userId, entry);
+        continue;
       }
 
-      const key = leaderboardGroupKey(entry);
-      const existing = bestByGroup.get(key);
-      if (!existing || isBetterLeaderboardRun(entry, existing)) {
-        bestByGroup.set(key, entry);
+      const entryTimeMs = toTimeMs(entry.createdAt);
+      const existingTimeMs = toTimeMs(existing.createdAt);
+      if (entryTimeMs > existingTimeMs || (entryTimeMs === existingTimeMs && entry.id > existing.id)) {
+        latestRunByUserId.set(entry.userId, entry);
       }
     }
 
-    const deduped = Array.from(bestByGroup.values())
-      .map((entry) => {
-        const latestProfile = latestProfileByUserId.get(entry.userId);
-        if (!latestProfile) return entry;
-
-        return {
-          ...entry,
-          userName: latestProfile.userName || entry.userName,
-          country: latestProfile.country || entry.country
-        };
-      })
+    const deduped = Array.from(latestRunByUserId.values())
       .sort((a, b) => {
         if (isBetterLeaderboardRun(a, b)) return -1;
         if (isBetterLeaderboardRun(b, a)) return 1;
