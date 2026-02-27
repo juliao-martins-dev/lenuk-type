@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Activity, ArrowLeft, Crown, Medal, Search, Target, Trophy, User, X, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
+import { SiteCreditsFooter } from "@/components/ui/site-credits-footer";
 import { countryName } from "@/lib/countries";
 
 interface LeaderboardItem {
@@ -653,6 +654,7 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       </div>
+      <SiteCreditsFooter className="mt-5" />
     </main>
   );
 }

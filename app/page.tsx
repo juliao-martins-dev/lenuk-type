@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { LenukSplashScreen } from "@/components/ui/lenuk-splash-screen";
+import { SiteCreditsFooter } from "@/components/ui/site-credits-footer";
 import { TypingPrompt } from "@/components/typing/typing-prompt";
 import { TypingStats } from "@/components/typing/typing-stats";
 import { BeginnerGuide } from "@/components/typing/beginner-guide";
@@ -885,6 +886,7 @@ export default function HomePage() {
             </div>
           </CardContent>
         </Card>
+        <SiteCreditsFooter className="mt-3" />
       </main>
     </>
   );
