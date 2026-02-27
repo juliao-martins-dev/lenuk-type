@@ -9,6 +9,10 @@ const SUPABASE_DB_URL =
   "";
 const SUPABASE_GET_TIMEOUT_MS = 20_000;
 const SUPABASE_POST_TIMEOUT_MS = 12_000;
+const SUPABASE_PG_RETRY_COOLDOWN_MS = Math.max(
+  0,
+  Number.parseInt(process.env.SUPABASE_PG_RETRY_COOLDOWN_MS ?? "120000", 10) || 120_000
+);
 const SUPABASE_GET_CACHE_TTL_MS = Math.max(
   0,
   Number.parseInt(process.env.SUPABASE_RESULTS_CACHE_TTL_MS ?? "0", 10) || 0
@@ -76,12 +80,15 @@ declare global {
 let cachedResults: TypingResultRow[] | null = null;
 let cachedResultsAt = 0;
 let inFlightGetResults: Promise<TypingResultRow[]> | null = null;
+let pgReadRetryAt = 0;
+let pgWriteRetryAt = 0;
 
 type ResultsBackendKind = "unknown" | "cache" | "postgres" | "supabase-rest";
 
 interface ResultsBackendDiagnostics {
   table: string;
   cacheTtlMs: number;
+  pgRetryCooldownMs: number;
   pgConfigured: boolean;
   supabaseUrlConfigured: boolean;
   supabaseKeyConfigured: boolean;
@@ -99,6 +106,7 @@ interface ResultsBackendDiagnostics {
 const backendDiagnostics: ResultsBackendDiagnostics = {
   table: SUPABASE_RESULTS_TABLE,
   cacheTtlMs: SUPABASE_GET_CACHE_TTL_MS,
+  pgRetryCooldownMs: SUPABASE_PG_RETRY_COOLDOWN_MS,
   pgConfigured: Boolean(SUPABASE_DB_URL),
   supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
   supabaseKeyConfigured: Boolean(
@@ -146,12 +154,15 @@ function markPostError(error: unknown) {
 }
 
 export function getResultsBackendDiagnostics() {
+  const now = Date.now();
   return {
     ...backendDiagnostics,
     cachedResultsCount: cachedResults?.length ?? 0,
     cachedResultsAt: cachedResultsAt > 0 ? new Date(cachedResultsAt).toISOString() : null,
     cacheAgeMs: cachedResultsAt > 0 ? Math.max(0, Date.now() - cachedResultsAt) : null,
-  hasInFlightGet: inFlightGetResults !== null
+    pgReadRetryAt: pgReadRetryAt > now ? new Date(pgReadRetryAt).toISOString() : null,
+    pgWriteRetryAt: pgWriteRetryAt > now ? new Date(pgWriteRetryAt).toISOString() : null,
+    hasInFlightGet: inFlightGetResults !== null
   };
 }
 
@@ -331,6 +342,32 @@ function isPgConnectivityError(error: unknown) {
   );
 }
 
+function shouldTryPgRead() {
+  if (!SUPABASE_DB_URL) return false;
+  return Date.now() >= pgReadRetryAt;
+}
+
+function shouldTryPgWrite() {
+  if (!SUPABASE_DB_URL) return false;
+  return Date.now() >= pgWriteRetryAt;
+}
+
+function markPgReadUnavailable(error: unknown) {
+  backendDiagnostics.lastPgGetFallbackError = describeError(error);
+  pgReadRetryAt = Date.now() + SUPABASE_PG_RETRY_COOLDOWN_MS;
+  console.warn(
+    `Supabase Postgres GET unavailable, using Supabase REST for ${Math.round(SUPABASE_PG_RETRY_COOLDOWN_MS / 1000)}s: ${describeError(error)}`
+  );
+}
+
+function markPgWriteUnavailable(error: unknown) {
+  backendDiagnostics.lastPgPostFallbackError = describeError(error);
+  pgWriteRetryAt = Date.now() + SUPABASE_PG_RETRY_COOLDOWN_MS;
+  console.warn(
+    `Supabase Postgres POST unavailable, using Supabase REST for ${Math.round(SUPABASE_PG_RETRY_COOLDOWN_MS / 1000)}s: ${describeError(error)}`
+  );
+}
+
 function toSupabaseRestInsertRow(row: TypingResultRow): Record<string, unknown> {
   return {
     id: row.id,
@@ -399,7 +436,7 @@ export async function postResultToSupabase(row: TypingResultRow) {
   try {
     let insertedRows: TypingResultRow[];
 
-    if (SUPABASE_DB_URL) {
+    if (shouldTryPgWrite()) {
       try {
         const result = await runQuery<SupabaseDbRow>(
           `insert into ${RESULTS_TABLE_SQL}
@@ -426,14 +463,14 @@ export async function postResultToSupabase(row: TypingResultRow) {
         );
 
         insertedRows = result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow));
+        pgWriteRetryAt = 0;
         markPostSuccess("postgres");
       } catch (error) {
         if (!isPgConnectivityError(error)) {
           throw new Error(`Supabase Postgres POST failed: ${describeError(error)}`);
         }
 
-        backendDiagnostics.lastPgPostFallbackError = describeError(error);
-        console.warn("Supabase Postgres POST unavailable, falling back to Supabase REST", error);
+        markPgWriteUnavailable(error);
         insertedRows = await postResultViaSupabaseRest(row);
       }
     } else {
@@ -462,7 +499,7 @@ export async function getResultsFromSupabase() {
       try {
         let normalized: TypingResultRow[];
 
-        if (SUPABASE_DB_URL) {
+        if (shouldTryPgRead()) {
           try {
             const result = await runQuery<SupabaseDbRow>(
               `select
@@ -475,14 +512,14 @@ export async function getResultsFromSupabase() {
             );
 
             normalized = result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow));
+            pgReadRetryAt = 0;
             markGetSuccess("postgres", normalized.length);
           } catch (error) {
             if (!isPgConnectivityError(error)) {
               throw new Error(`Supabase Postgres GET failed: ${describeError(error)}`);
             }
 
-            backendDiagnostics.lastPgGetFallbackError = describeError(error);
-            console.warn("Supabase Postgres GET unavailable, falling back to Supabase REST", error);
+            markPgReadUnavailable(error);
             normalized = await getResultsViaSupabaseRest();
           }
         } else {
