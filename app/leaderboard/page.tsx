@@ -233,7 +233,7 @@ export default function LeaderboardPage() {
     return ["all", ...Array.from(new Set(items.map((item) => item.difficulty).filter(Boolean))).sort()];
   }, [items]);
 
-  const displayItems = useMemo(() => {
+  const rankedItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     const filtered = items.filter((item) => {
@@ -255,19 +255,29 @@ export default function LeaderboardPage() {
     });
 
     if (sortBy === "leaderboard") {
-      return [...filtered].sort(compareByLeaderboardRank);
+      return [...filtered].sort(compareByLeaderboardRank).map((item, index) => ({
+        item,
+        rank: index + 1,
+        score: Math.round(rankScore(item) * 10) / 10
+      }));
     }
 
-    return [...filtered].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       if (sortBy === "wpm") return b.wpm - a.wpm || b.accuracy - a.accuracy;
       if (sortBy === "accuracy") return b.accuracy - a.accuracy || b.wpm - a.wpm;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+    return sorted.map((item, index) => ({
+      item,
+      rank: index + 1,
+      score: Math.round(rankScore(item) * 10) / 10
+    }));
   }, [items, query, modeFilter, difficultyFilter, sortBy]);
 
   const hasActiveFilters =
     query.trim().length > 0 || modeFilter !== "all" || difficultyFilter !== "all" || sortBy !== "leaderboard";
-  const podiumItems = displayItems.slice(0, 3);
+  const podiumItems = rankedItems.slice(0, 3);
+  const podiumKey = `${query}|${modeFilter}|${difficultyFilter}|${sortBy}|${rankedItems.length}`;
   const now = Date.now();
 
   const lastUpdatedLabel = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : "Waiting for first sync";
@@ -388,7 +398,7 @@ export default function LeaderboardPage() {
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <p>
-                  Showing {displayItems.length} of {items.length} entries
+                  Showing {rankedItems.length} of {items.length} entries
                 </p>
                 <p>Rank formula: WPM x accuracy x difficulty</p>
                 <p>Last sync: {lastUpdatedLabel}</p>
@@ -398,15 +408,13 @@ export default function LeaderboardPage() {
         </Card>
 
         {podiumItems.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-3">
-            {podiumItems.map((item, index) => {
-              const rank = index + 1;
+          <div key={podiumKey} className="grid gap-3 md:grid-cols-3">
+            {podiumItems.map(({ item, rank, score }) => {
               const playerName = item.userName || item.userId;
               const country = item.country ? countryName(item.country) : "";
-              const score = Math.round(rankScore(item) * 10) / 10;
 
               return (
-                <Card key={`podium-${item.id}`} className={`relative overflow-hidden shadow-lg ${podiumCardClasses(rank)}`}>
+                <Card key={`podium-${item.id}-${rank}`} className={`relative overflow-hidden shadow-lg ${podiumCardClasses(rank)}`}>
                   <CardContent className="relative space-y-3 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
@@ -450,7 +458,7 @@ export default function LeaderboardPage() {
               <LoadingState />
             ) : items.length === 0 ? (
               <EmptyState title="No leaderboard results yet" description="Finish a typing run to create the first entry." />
-            ) : displayItems.length === 0 ? (
+            ) : rankedItems.length === 0 ? (
               <EmptyState
                 title="No runs match these filters"
                 description="Try another search term or clear the current filters."
@@ -473,13 +481,11 @@ export default function LeaderboardPage() {
             ) : (
               <div>
                 <div className="space-y-3 p-4 md:hidden">
-                  {displayItems.map((item, index) => {
-                    const rank = index + 1;
+                  {rankedItems.map(({ item, rank, score }) => {
                     const country = item.country ? countryName(item.country) : "";
                     const playerName = item.userName || item.userId;
                     const timestamp = formatTimestamp(item.createdAt);
                     const relative = formatRelativeTime(item.createdAt, now);
-                    const score = Math.round(rankScore(item) * 10) / 10;
 
                     return (
                       <article
@@ -542,13 +548,11 @@ export default function LeaderboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {displayItems.map((item, index) => {
-                        const rank = index + 1;
+                      {rankedItems.map(({ item, rank, score }) => {
                         const country = item.country ? countryName(item.country) : "";
                         const playerName = item.userName || item.userId;
                         const timestamp = formatTimestamp(item.createdAt);
                         const relative = formatRelativeTime(item.createdAt, now);
-                        const score = Math.round(rankScore(item) * 10) / 10;
                         const speedPercent =
                           stats.topWpm > 0 ? Math.max(7, Math.round((item.wpm / stats.topWpm) * 100)) : 0;
 
