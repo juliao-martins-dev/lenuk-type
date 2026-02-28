@@ -1,5 +1,6 @@
 import { setDefaultResultOrder } from "node:dns";
 import { Pool, type QueryResultRow } from "pg";
+import { createResultIdentityKey } from "@/lib/results-identity";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 const SUPABASE_RESULTS_TABLE = process.env.SUPABASE_RESULTS_TABLE?.trim() || "lenuk_typing_users";
@@ -260,16 +261,20 @@ function toTimeMs(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function dedupeLatestRunsByUser(rows: TypingResultRow[]) {
-  const latestByUser = new Map<string, TypingResultRow>();
+function dedupeLatestRunsByIdentity(rows: TypingResultRow[]) {
+  const latestByIdentity = new Map<string, TypingResultRow>();
 
   for (const row of rows) {
-    const userKey = toStringValue(row.userId).trim() || toStringValue(row.id).trim();
-    if (!userKey) continue;
+    const identityKey = createResultIdentityKey({
+      player: row.player,
+      userId: row.userId,
+      id: row.id
+    });
+    if (!identityKey) continue;
 
-    const existing = latestByUser.get(userKey);
+    const existing = latestByIdentity.get(identityKey);
     if (!existing) {
-      latestByUser.set(userKey, row);
+      latestByIdentity.set(identityKey, row);
       continue;
     }
 
@@ -277,16 +282,16 @@ function dedupeLatestRunsByUser(rows: TypingResultRow[]) {
     const existingTime = toTimeMs(existing.createdAt);
 
     if (rowTime > existingTime) {
-      latestByUser.set(userKey, row);
+      latestByIdentity.set(identityKey, row);
       continue;
     }
 
     if (rowTime === existingTime && toStringValue(row.id) > toStringValue(existing.id)) {
-      latestByUser.set(userKey, row);
+      latestByIdentity.set(identityKey, row);
     }
   }
 
-  return Array.from(latestByUser.values()).sort((a, b) => {
+  return Array.from(latestByIdentity.values()).sort((a, b) => {
     const timeDiff = toTimeMs(b.createdAt) - toTimeMs(a.createdAt);
     if (timeDiff !== 0) return timeDiff;
     return toStringValue(b.id).localeCompare(toStringValue(a.id));
@@ -466,7 +471,7 @@ async function getResultsViaSupabaseRest() {
   }
 
   const mapped = Array.isArray(data) ? data.map((entry) => fromSupabaseRestRow(entry)) : [];
-  const deduped = dedupeLatestRunsByUser(mapped);
+  const deduped = dedupeLatestRunsByIdentity(mapped);
   markGetSuccess("supabase-rest", deduped.length);
   return deduped;
 }
@@ -550,7 +555,7 @@ export async function getResultsFromSupabase() {
               SUPABASE_GET_TIMEOUT_MS
             );
 
-            normalized = dedupeLatestRunsByUser(result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow)));
+            normalized = dedupeLatestRunsByIdentity(result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow)));
             pgReadRetryAt = 0;
             markGetSuccess("postgres", normalized.length);
           } catch (error) {

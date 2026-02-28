@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { createResultIdentityKey } from "@/lib/results-identity";
 import { getResultsFromSupabase, postResultToSupabase, type TypingResultRow } from "@/lib/supabase-results";
 
 export const runtime = "nodejs";
@@ -242,23 +243,30 @@ export async function GET() {
         );
       });
 
-    const latestRunByUserId = new Map<string, LeaderboardResult>();
+    const latestRunByIdentity = new Map<string, LeaderboardResult>();
 
     for (const entry of normalized) {
-      const existing = latestRunByUserId.get(entry.userId);
+      const identityKey = createResultIdentityKey({
+        player: entry.userName,
+        userId: entry.userId,
+        id: entry.id
+      });
+      if (!identityKey) continue;
+
+      const existing = latestRunByIdentity.get(identityKey);
       if (!existing) {
-        latestRunByUserId.set(entry.userId, entry);
+        latestRunByIdentity.set(identityKey, entry);
         continue;
       }
 
       const entryTimeMs = toTimeMs(entry.createdAt);
       const existingTimeMs = toTimeMs(existing.createdAt);
       if (entryTimeMs > existingTimeMs || (entryTimeMs === existingTimeMs && entry.id > existing.id)) {
-        latestRunByUserId.set(entry.userId, entry);
+        latestRunByIdentity.set(identityKey, entry);
       }
     }
 
-    const deduped = Array.from(latestRunByUserId.values())
+    const deduped = Array.from(latestRunByIdentity.values())
       .sort((a, b) => {
         if (isBetterLeaderboardRun(a, b)) return -1;
         if (isBetterLeaderboardRun(b, a)) return 1;
