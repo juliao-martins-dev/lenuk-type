@@ -197,7 +197,10 @@ export async function GET() {
     const normalized: LeaderboardResult[] = (Array.isArray(results) ? results : [])
       .map((entry) => {
         let metadataObj: Record<string, unknown> = {};
-        if (typeof entry.metadata === "string" && entry.metadata.trim()) {
+        const hasPlayer = typeof entry.player === "string" && entry.player.trim().length > 0;
+        const hasCountry = typeof entry.country === "string" && entry.country.trim().length > 0;
+
+        if ((!hasPlayer || !hasCountry) && typeof entry.metadata === "string" && entry.metadata.trim()) {
           try {
             metadataObj = JSON.parse(entry.metadata);
           } catch {
@@ -210,13 +213,13 @@ export async function GET() {
           createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
           userId: typeof entry.userId === "string" ? entry.userId : "",
           userName:
-            typeof entry.player === "string" && entry.player
+            hasPlayer
               ? entry.player
               : typeof metadataObj.userName === "string"
                 ? metadataObj.userName
                 : "Anonymous",
           country:
-            typeof entry.country === "string" && entry.country
+            hasCountry
               ? normalizeCountry(entry.country)
               : typeof metadataObj.country === "string"
                 ? normalizeCountry(metadataObj.country)

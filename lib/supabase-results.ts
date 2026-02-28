@@ -8,6 +8,7 @@ const SUPABASE_DB_URL =
   process.env.SUPABASE_DB_URL?.trim() ||
   process.env.DATABASE_URL?.trim() ||
   "";
+const DEFAULT_RESULTS_CACHE_TTL_MS = 5_000;
 const SUPABASE_GET_TIMEOUT_MS = 20_000;
 const SUPABASE_POST_TIMEOUT_MS = 12_000;
 const SUPABASE_PG_RETRY_COOLDOWN_MS = Math.max(
@@ -16,7 +17,8 @@ const SUPABASE_PG_RETRY_COOLDOWN_MS = Math.max(
 );
 const SUPABASE_GET_CACHE_TTL_MS = Math.max(
   0,
-  Number.parseInt(process.env.SUPABASE_RESULTS_CACHE_TTL_MS ?? "0", 10) || 0
+  Number.parseInt(process.env.SUPABASE_RESULTS_CACHE_TTL_MS ?? String(DEFAULT_RESULTS_CACHE_TTL_MS), 10) ||
+    DEFAULT_RESULTS_CACHE_TTL_MS
 );
 
 try {
@@ -83,6 +85,7 @@ let cachedResultsAt = 0;
 let inFlightGetResults: Promise<TypingResultRow[]> | null = null;
 let pgReadRetryAt = 0;
 let pgWriteRetryAt = 0;
+let resultsCacheVersion = 0;
 
 type ResultsBackendKind = "unknown" | "cache" | "postgres" | "supabase-rest";
 
@@ -161,6 +164,7 @@ export function getResultsBackendDiagnostics() {
     cachedResultsCount: cachedResults?.length ?? 0,
     cachedResultsAt: cachedResultsAt > 0 ? new Date(cachedResultsAt).toISOString() : null,
     cacheAgeMs: cachedResultsAt > 0 ? Math.max(0, Date.now() - cachedResultsAt) : null,
+    resultsCacheVersion,
     pgReadRetryAt: pgReadRetryAt > now ? new Date(pgReadRetryAt).toISOString() : null,
     pgWriteRetryAt: pgWriteRetryAt > now ? new Date(pgWriteRetryAt).toISOString() : null,
     hasInFlightGet: inFlightGetResults !== null
@@ -228,6 +232,14 @@ function toStoredMetadata(row: TypingResultRow) {
     userId: row.userId,
     errors: row.errors
   }).slice(0, 20_000);
+}
+
+function toStoredResultRow(row: TypingResultRow): TypingResultRow {
+  return {
+    ...row,
+    metadata: toStoredMetadata(row),
+    country: row.country ? row.country.toUpperCase() : ""
+  };
 }
 
 function fromDbRow(row: SupabaseDbRow): TypingResultRow {
@@ -434,10 +446,9 @@ function fromSupabaseRestRow(row: SupabaseRestRow) {
 
 async function postResultViaSupabaseRest(row: TypingResultRow) {
   const client = getSupabaseServerClient();
-  const { data, error } = await client
+  const { error } = await client
     .from(SUPABASE_RESULTS_TABLE)
-    .insert(toSupabaseRestInsertRow(row))
-    .select(SUPABASE_RESULTS_SELECT);
+    .insert(toSupabaseRestInsertRow(row));
 
   if (error) {
     if (/row-level security/i.test(error.message)) {
@@ -448,9 +459,8 @@ async function postResultViaSupabaseRest(row: TypingResultRow) {
     throw new Error(`Supabase REST POST failed: ${error.message}`);
   }
 
-  const mapped = Array.isArray(data) ? data.map((entry) => fromSupabaseRestRow(entry)) : [];
   markPostSuccess("supabase-rest");
-  return mapped;
+  return [toStoredResultRow(row)];
 }
 
 async function getResultsViaSupabaseRest() {
@@ -482,13 +492,11 @@ export async function postResultToSupabase(row: TypingResultRow) {
 
     if (shouldTryPgWrite()) {
       try {
-        const result = await runQuery<SupabaseDbRow>(
+        await runQuery<SupabaseDbRow>(
           `insert into ${RESULTS_TABLE_SQL}
             (id, created_at, player, mode, difficulty, duration_seconds, wpm, raw_wpm, accuracy, prompt_id, metadata, country)
            values
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-           returning
-            id, created_at, player, mode, difficulty, duration_seconds, wpm, raw_wpm, accuracy, prompt_id, metadata, country`,
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             row.id,
             row.createdAt,
@@ -506,7 +514,7 @@ export async function postResultToSupabase(row: TypingResultRow) {
           SUPABASE_POST_TIMEOUT_MS
         );
 
-        insertedRows = result.rows.map((dbRow: SupabaseDbRow) => fromDbRow(dbRow));
+        insertedRows = [toStoredResultRow(row)];
         pgWriteRetryAt = 0;
         markPostSuccess("postgres");
       } catch (error) {
@@ -521,6 +529,7 @@ export async function postResultToSupabase(row: TypingResultRow) {
       insertedRows = await postResultViaSupabaseRest(row);
     }
 
+    resultsCacheVersion += 1;
     cachedResults = null;
     cachedResultsAt = 0;
 
@@ -539,6 +548,8 @@ export async function getResultsFromSupabase() {
   }
 
   if (!inFlightGetResults) {
+    const requestCacheVersion = resultsCacheVersion;
+
     inFlightGetResults = (async () => {
       try {
         let normalized: TypingResultRow[];
@@ -570,8 +581,10 @@ export async function getResultsFromSupabase() {
           normalized = await getResultsViaSupabaseRest();
         }
 
-        cachedResults = normalized;
-        cachedResultsAt = Date.now();
+        if (resultsCacheVersion === requestCacheVersion) {
+          cachedResults = normalized;
+          cachedResultsAt = Date.now();
+        }
         return normalized;
       } catch (error) {
         // If the DB is temporarily slow/unavailable, serve the last known good data.
