@@ -225,6 +225,7 @@ export default function HomePage() {
     lastSignature: null
   });
   const replayTimeoutsRef = useRef<number[]>([]);
+  const profileNameInputRef = useRef<HTMLInputElement>(null);
 
   const difficultyContentSettings = useMemo(() => getDifficultyContentSettings(difficulty), [difficulty]);
   const { content: generatedTextContent, regenerate: regenerateTextContent } = useTestContent({
@@ -359,6 +360,21 @@ export default function HomePage() {
     const frameId = window.requestAnimationFrame(() => focusTypingInput());
     return () => window.cancelAnimationFrame(frameId);
   }, [focusTypingInput, typingEnabled]);
+
+  useEffect(() => {
+    if (!showProfileDialog) return;
+
+    blurTypingInput();
+
+    if (isSplashVisible) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      profileNameInputRef.current?.focus({ preventScroll: true });
+      profileNameInputRef.current?.select();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [blurTypingInput, isSplashVisible, showProfileDialog]);
 
   useEffect(() => {
     if (!typingEnabled || isRunFinished || isReplaying || capture.isFocused) return;
@@ -534,6 +550,7 @@ export default function HomePage() {
   };
 
   const openProfileDialog = () => {
+    blurTypingInput();
     setDraftName(userName);
     setDraftCountry(userCountry);
     ensureCountryOptionsLoaded();
@@ -559,16 +576,24 @@ export default function HomePage() {
 
       {showProfileDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <Card className="w-full max-w-md">
+          <Card
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-dialog-title"
+            aria-describedby="profile-dialog-description"
+            className="w-full max-w-md"
+          >
             <CardContent className="space-y-4 p-6">
-              <h2 className="text-xl font-semibold">{requiresOnboarding ? "Welcome to Lenuk Type" : "Edit Profile"}</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 id="profile-dialog-title" className="text-xl font-semibold">
+                {requiresOnboarding ? "Welcome to Lenuk Type" : "Edit Profile"}
+              </h2>
+              <p id="profile-dialog-description" className="text-sm text-muted-foreground">
                 {requiresOnboarding
                   ? "Enter your name and country once to start. Next visits will remember you."
                   : "Update your display name and country for future leaderboard entries."}
               </p>
               <input
-                autoFocus
+                ref={profileNameInputRef}
                 value={draftName}
                 onChange={(event) => setDraftName(event.target.value)}
                 placeholder="Your name"

@@ -94,7 +94,7 @@ export function LenukSplashScreen({ onVisibilityChange, ready = true }: LenukSpl
   return (
     <div
       className={`fixed inset-0 z-[70] flex items-center justify-center px-4 transition-opacity ${
-        phase === "fade" ? "opacity-0 duration-300" : "opacity-100 duration-150"
+        phase === "fade" ? "pointer-events-none opacity-0 duration-300" : "pointer-events-auto opacity-100 duration-150"
       }`}
       aria-hidden
     >
