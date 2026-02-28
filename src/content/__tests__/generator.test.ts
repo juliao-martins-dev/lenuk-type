@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyToggles, generateWordList, toCharStream } from "@/src/content/generator";
+import { applyToggles, buildTestContent, generateWordList, toCharStream } from "@/src/content/generator";
 import { getLanguage } from "@/src/content/languages/registry";
 
 describe("content generator", () => {
@@ -143,6 +143,51 @@ describe("content generator", () => {
 
     expect(wordTokens).toHaveLength(words.length);
     expect(numberTokens).toHaveLength(words.length);
+    expect(wordTokens.every((token) => /[.,?!;:]$/.test(token))).toBe(true);
+  });
+
+  it("keeps medium text runs at the selected token count while mixing in numbers", () => {
+    const content = buildTestContent({
+      languageCode: "en-US",
+      mode: "words",
+      wordCount: 25,
+      duration: 30,
+      seed: "medium-fixed-count",
+      punctuation: false,
+      numbers: true,
+      numbersRate: 1,
+      difficulty: "mixed"
+    });
+
+    const numberTokens = content.tokens.filter((token) => /^\d+$/.test(token));
+    const wordTokens = content.tokens.filter((token) => !/^\d+$/.test(token));
+
+    expect(content.tokens).toHaveLength(25);
+    expect(numberTokens.length).toBeGreaterThan(0);
+    expect(wordTokens.length).toBeGreaterThan(0);
+    expect(numberTokens.length + wordTokens.length).toBe(25);
+  });
+
+  it("keeps hard text runs at the selected token count while adding numbers and punctuation", () => {
+    const content = buildTestContent({
+      languageCode: "tet-TL",
+      mode: "words",
+      wordCount: 25,
+      duration: 30,
+      seed: "hard-fixed-count",
+      punctuation: true,
+      numbers: true,
+      punctuationRate: 1,
+      numbersRate: 1,
+      difficulty: "mixed"
+    });
+
+    const numberTokens = content.tokens.filter((token) => /^\d+$/.test(token));
+    const wordTokens = content.tokens.filter((token) => !/^\d+$/.test(token));
+
+    expect(content.tokens).toHaveLength(25);
+    expect(numberTokens.length).toBeGreaterThan(0);
+    expect(wordTokens.length).toBeGreaterThan(0);
     expect(wordTokens.every((token) => /[.,?!;:]$/.test(token))).toBe(true);
   });
 });

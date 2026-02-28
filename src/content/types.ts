@@ -38,6 +38,7 @@ export interface ApplyTogglesOptions {
   punctuationRate?: number;
   numbersRate?: number;
   seed?: string | number;
+  targetTokenCount?: number;
 }
 
 export interface GeneratedWordList {

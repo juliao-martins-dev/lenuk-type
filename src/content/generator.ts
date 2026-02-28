@@ -72,6 +72,7 @@ function buildToggleSeed(words: string[], opts: ApplyTogglesOptions) {
     opts.numbers ? "n1" : "n0",
     String(opts.punctuationRate ?? DEFAULT_PUNCTUATION_RATE),
     String(opts.numbersRate ?? DEFAULT_NUMBERS_RATE),
+    String(opts.targetTokenCount ?? ""),
     String(words.length),
     words.join("|")
   ].join("::");
@@ -92,6 +93,30 @@ function getDifficultyPool(words: string[], difficulty: WordDifficulty = "mixed"
   if (difficulty !== "common") return words;
   const commonSize = Math.max(16, Math.min(words.length, Math.floor(words.length * 0.6)));
   return words.slice(0, commonSize);
+}
+
+function pickUniqueIndices(limit: number, count: number, rng: Rng) {
+  const normalizedCount = Math.max(0, Math.min(limit, Math.floor(count)));
+  const pool = Array.from({ length: limit }, (_, index) => index);
+  const picked = new Set<number>();
+
+  for (let index = 0; index < normalizedCount; index += 1) {
+    const randomIndex = randomInt(rng, index, pool.length);
+    [pool[index], pool[randomIndex]] = [pool[randomIndex], pool[index]];
+    picked.add(pool[index]);
+  }
+
+  return picked;
+}
+
+function resolveInsertedNumberCount(targetTokenCount: number, numbersRate: number) {
+  if (targetTokenCount <= 1 || numbersRate <= 0) return 0;
+  return Math.max(0, Math.min(targetTokenCount - 1, Math.floor((targetTokenCount * numbersRate) / (1 + numbersRate))));
+}
+
+function resolveSourceWordCount(targetTokenCount: number, numbers: boolean, numbersRate: number) {
+  if (!numbers) return targetTokenCount;
+  return Math.max(1, targetTokenCount - resolveInsertedNumberCount(targetTokenCount, numbersRate));
 }
 
 function pickUniqueWords(pool: string[], count: number, rng: Rng) {
@@ -151,13 +176,44 @@ export function applyToggles(words: string[], opts: ApplyTogglesOptions): Toggle
   const punctuationRate = clampRate(opts.punctuationRate, DEFAULT_PUNCTUATION_RATE);
   const numbersRate = clampRate(opts.numbersRate, DEFAULT_NUMBERS_RATE);
   const rng = createRng(buildToggleSeed(words, opts));
+  const normalizedWords = words.map((word) => sanitizeWordToken(word)).filter(Boolean);
+  const boundedTargetTokenCount = Number.isFinite(opts.targetTokenCount)
+    ? Math.max(normalizedWords.length, Math.floor(Number(opts.targetTokenCount)))
+    : null;
+
+  if (boundedTargetTokenCount !== null) {
+    const desiredNumberCount = opts.numbers ? Math.min(normalizedWords.length, boundedTargetTokenCount - normalizedWords.length) : 0;
+    const numberedWordIndices = pickUniqueIndices(normalizedWords.length, desiredNumberCount, rng);
+    const tokens: string[] = [];
+
+    for (let index = 0; index < normalizedWords.length; index += 1) {
+      const baseWord = normalizedWords[index];
+      const shouldAddNumber = numberedWordIndices.has(index);
+      const placeNumberBeforeWord = shouldAddNumber ? rng() < 0.4 : false;
+
+      if (shouldAddNumber && placeNumberBeforeWord) {
+        tokens.push(buildNumberToken(rng));
+      }
+
+      let token = baseWord;
+      if (opts.punctuation && rng() < punctuationRate && !hasTrailingPunctuation(token)) {
+        token = `${token}${pickPunctuation(rng)}`;
+      }
+
+      tokens.push(token);
+
+      if (shouldAddNumber && !placeNumberBeforeWord && tokens.length < boundedTargetTokenCount) {
+        tokens.push(buildNumberToken(rng));
+      }
+    }
+
+    return { tokens: tokens.slice(0, boundedTargetTokenCount) };
+  }
+
   const tokens: string[] = [];
   const forceOneNumberPerWord = opts.numbers && numbersRate >= 1;
 
-  for (const rawWord of words) {
-    const baseWord = sanitizeWordToken(rawWord);
-    if (!baseWord) continue;
-
+  for (const baseWord of normalizedWords) {
     const placeNumberBeforeWord = forceOneNumberPerWord ? rng() < 0.4 : false;
 
     if (opts.numbers && (forceOneNumberPerWord ? placeNumberBeforeWord : rng() < numbersRate * 0.5)) {
@@ -199,9 +255,11 @@ function resolveTargetWordCount(mode: BuildTestContentOptions["mode"], wordCount
 
 export function buildTestContent(opts: BuildTestContentOptions): GeneratedTestContent {
   const targetWordCount = resolveTargetWordCount(opts.mode, opts.wordCount, opts.duration);
+  const normalizedNumbersRate = clampRate(opts.numbersRate, DEFAULT_NUMBERS_RATE);
+  const sourceWordCount = resolveSourceWordCount(targetWordCount, opts.numbers, normalizedNumbersRate);
   const { words } = generateWordList({
     languageCode: opts.languageCode,
-    count: targetWordCount,
+    count: sourceWordCount,
     seed: opts.seed,
     allowRepeat: opts.allowRepeat,
     difficulty: opts.difficulty
@@ -212,7 +270,8 @@ export function buildTestContent(opts: BuildTestContentOptions): GeneratedTestCo
     numbers: opts.numbers,
     punctuationRate: opts.punctuationRate,
     numbersRate: opts.numbersRate,
-    seed: opts.seed
+    seed: opts.seed,
+    targetTokenCount: targetWordCount
   });
 
   const { chars, text } = toCharStream(tokens);
