@@ -3,6 +3,18 @@ import { applyToggles, generateWordList, toCharStream } from "@/src/content/gene
 import { getLanguage } from "@/src/content/languages/registry";
 
 describe("content generator", () => {
+  it("keeps a broad vocabulary in every supported language pack", () => {
+    const languageCodes = ["en-US", "pt-CPLP", "id-ID", "tet-TL"] as const;
+
+    for (const code of languageCodes) {
+      const words = getLanguage(code).words;
+      const uniqueWords = new Set(words);
+
+      expect(uniqueWords.size).toBeGreaterThanOrEqual(80);
+      expect(words.every((word) => word.trim().length > 0)).toBe(true);
+    }
+  });
+
   it("generates deterministic word lists for the same seed", () => {
     const first = generateWordList({
       languageCode: "en-US",
