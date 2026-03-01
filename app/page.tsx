@@ -226,6 +226,7 @@ export default function HomePage() {
   });
   const replayTimeoutsRef = useRef<number[]>([]);
   const profileNameInputRef = useRef<HTMLInputElement>(null);
+  const shouldRestoreTypingFocusRef = useRef(false);
 
   const difficultyContentSettings = useMemo(() => getDifficultyContentSettings(difficulty), [difficulty]);
   const { content: generatedTextContent, regenerate: regenerateTextContent } = useTestContent({
@@ -362,6 +363,14 @@ export default function HomePage() {
   }, [focusTypingInput, typingEnabled]);
 
   useEffect(() => {
+    if (!typingEnabled || showProfileDialog || !shouldRestoreTypingFocusRef.current) return;
+
+    shouldRestoreTypingFocusRef.current = false;
+    const frameId = window.requestAnimationFrame(() => focusTypingInput());
+    return () => window.cancelAnimationFrame(frameId);
+  }, [focusTypingInput, showProfileDialog, typingEnabled]);
+
+  useEffect(() => {
     if (!showProfileDialog) return;
 
     blurTypingInput();
@@ -395,13 +404,15 @@ export default function HomePage() {
 
       if (event.key === "Tab") return;
 
-      event.preventDefault();
       focusTypingInput();
+      const handled = capture.handleExternalKeyDown(event);
+      if (handled) return;
+      event.preventDefault();
     };
 
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
-  }, [capture.isFocused, focusTypingInput, isReplaying, isRunFinished, typingEnabled]);
+  }, [capture.handleExternalKeyDown, capture.isFocused, focusTypingInput, isReplaying, isRunFinished, typingEnabled]);
 
   useEffect(() => {
     if (!snapshot.metrics.finished) return;
@@ -551,10 +562,16 @@ export default function HomePage() {
 
   const openProfileDialog = () => {
     blurTypingInput();
+    shouldRestoreTypingFocusRef.current = false;
     setDraftName(userName);
     setDraftCountry(userCountry);
     ensureCountryOptionsLoaded();
     setIsProfileDialogOpen(true);
+  };
+
+  const closeProfileDialog = () => {
+    shouldRestoreTypingFocusRef.current = true;
+    setIsProfileDialogOpen(false);
   };
   
   const saveProfile = () => {
@@ -566,7 +583,7 @@ export default function HomePage() {
     getOrCreateUserId();
     setUserName(nextName);
     setUserCountry(nextCountry);
-    setIsProfileDialogOpen(false);
+    closeProfileDialog();
   };
 
   return (
@@ -605,7 +622,7 @@ export default function HomePage() {
               <CountryPicker value={draftCountry} options={countryOptions} onChange={setDraftCountry} />
               <div className="flex gap-2">
                 {!requiresOnboarding && (
-                  <Button variant="ghost" className="w-full" onClick={() => setIsProfileDialogOpen(false)}>
+                  <Button variant="ghost" className="w-full" onClick={closeProfileDialog}>
                     Cancel
                   </Button>
                 )}

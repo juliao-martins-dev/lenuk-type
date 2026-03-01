@@ -2,20 +2,18 @@
 
 import type { ClipboardEvent, InputHTMLAttributes, KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { dispatchTypingKey, type TypingKeyInput } from "@/lib/engine/typing-key-input";
 import { DurationSeconds, TypingEngine } from "@/lib/engine/typing-engine";
 
 const DEFAULT_TEXT =
   "AI helps developers ship features faster while maintaining quality through readable code and deliberate typing practice.";
-
-function isTypingInputKey(key: string) {
-  return key.length === 1 || key === "Enter";
-}
 
 export interface TypingCapture {
   inputRef: RefObject<HTMLInputElement | null>;
   inputProps: InputHTMLAttributes<HTMLInputElement>;
   focusInput: () => void;
   blurInput: () => void;
+  handleExternalKeyDown: (event: KeyboardEvent) => boolean;
   isFocused: boolean;
 }
 
@@ -38,32 +36,27 @@ export function useTypingEngine(
     inputRef.current?.blur();
   }, [enabled]);
 
-  const onCaptureKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLInputElement>) => {
-      if (!enabled) return;
-      if (event.defaultPrevented || event.nativeEvent.isComposing) return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        engine.restart();
-        return;
-      }
-
-      if (event.key === "Tab") return;
-
-      if (event.key === "Backspace") {
-        event.preventDefault();
-        engine.handleBackspace();
-        return;
-      }
-
-      if (!isTypingInputKey(event.key)) return;
-
-      event.preventDefault();
-      engine.handleKey(event.key === "Enter" ? "\n" : event.key);
+  const handleKeyInput = useCallback(
+    (event: TypingKeyInput) => {
+      if (!enabled) return false;
+      return dispatchTypingKey(engine, event);
     },
     [enabled, engine]
+  );
+
+  const onCaptureKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      handleKeyInput({
+        key: event.key,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        defaultPrevented: event.defaultPrevented,
+        isComposing: event.nativeEvent.isComposing,
+        preventDefault: () => event.preventDefault()
+      });
+    },
+    [handleKeyInput]
   );
 
   const onCapturePaste = useCallback((event: ClipboardEvent<HTMLInputElement>) => {
@@ -78,6 +71,20 @@ export function useTypingEngine(
   const blurInput = useCallback(() => {
     inputRef.current?.blur();
   }, []);
+
+  const handleExternalKeyDown = useCallback(
+    (event: KeyboardEvent) =>
+      handleKeyInput({
+        key: event.key,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        defaultPrevented: event.defaultPrevented,
+        isComposing: event.isComposing,
+        preventDefault: () => event.preventDefault()
+      }),
+    [handleKeyInput]
+  );
 
   const inputProps = useMemo<InputHTMLAttributes<HTMLInputElement>>(
     () => ({
@@ -104,9 +111,10 @@ export function useTypingEngine(
       inputProps,
       focusInput,
       blurInput,
+      handleExternalKeyDown,
       isFocused
     }),
-    [blurInput, focusInput, inputProps, isFocused]
+    [blurInput, focusInput, handleExternalKeyDown, inputProps, isFocused]
   );
 
   return {
