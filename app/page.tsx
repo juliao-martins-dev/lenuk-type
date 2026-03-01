@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, Keyboard, Pencil, Play, RotateCcw, SlidersHorizontal, Trophy, User } from "lucide-react";
+import { ArrowRight, Keyboard, Pencil, Play, RotateCcw, Shuffle, SlidersHorizontal, Trophy, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -195,10 +195,21 @@ function getTypingWordCount() {
   return supportedTextWordCounts.has(value) ? value : DEFAULT_TYPING_WORD_COUNT;
 }
 
+function getOrCreateContentSeed() {
+  if (typeof window === "undefined") return "lenuk-type";
+  const existing = localStorage.getItem("lenuk-content-seed");
+  if (existing) return existing;
+  const fresh = `lenuk-${crypto.randomUUID()}`;
+  localStorage.setItem("lenuk-content-seed", fresh);
+  localStorage.setItem("lenuk-first-visit-at", new Date().toISOString());
+  return fresh;
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy");
+  const [baseContentSeed, setBaseContentSeed] = useState("lenuk-type");
   const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_TYPING_LANGUAGE_CODE);
   const [textWordCount, setTextWordCount] = useState<number>(DEFAULT_TYPING_WORD_COUNT);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -228,13 +239,17 @@ export default function HomePage() {
   const profileNameInputRef = useRef<HTMLInputElement>(null);
   const shouldRestoreTypingFocusRef = useRef(false);
 
+  useEffect(() => {
+    setBaseContentSeed(getOrCreateContentSeed());
+  }, []);
+
   const difficultyContentSettings = useMemo(() => getDifficultyContentSettings(difficulty), [difficulty]);
   const { content: generatedTextContent, regenerate: regenerateTextContent } = useTestContent({
     languageCode: typingLanguageCode,
     mode: "words",
     wordCount: textWordCount,
     duration,
-    seed: `lenuk-type:${typingLanguageCode}:${difficulty}:${duration}:${textWordCount}`,
+    seed: `${baseContentSeed}:${typingLanguageCode}:${difficulty}:${duration}:${textWordCount}`,
     punctuation: difficultyContentSettings.punctuation,
     numbers: difficultyContentSettings.numbers,
     punctuationRate: difficultyContentSettings.punctuationRate,
@@ -521,6 +536,13 @@ export default function HomePage() {
     focusTypingSoon();
   };
 
+  const shufflePrompt = () => {
+    if (mode !== "text") return;
+    resetRunUiState();
+    regenerateTextContent(`shuffle:${crypto.randomUUID()}`);
+    focusTypingSoon();
+  };
+
   const handleReplay = () => {
     if (!completedReplayRun || completedReplayRun.text !== snapshot.text || completedReplayRun.frames.length === 0) return;
 
@@ -694,6 +716,18 @@ export default function HomePage() {
                           ? "Finished"
                           : "Ready"}
                   </span>
+                  {onboardingComplete && mode === "text" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 rounded-full border bg-background/50 px-2.5 text-[11px]"
+                      onClick={shufflePrompt}
+                      disabled={!typingEnabled || isRunFinished}
+                    >
+                      <Shuffle className="mr-1 h-3.5 w-3.5" />
+                      New prompt
+                    </Button>
+                  )}
                   {onboardingComplete && (
                     <Button
                       variant="ghost"
