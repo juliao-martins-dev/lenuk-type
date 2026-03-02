@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
+import { STORAGE_KEYS } from "@/lib/config";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-const STORAGE_KEY = "lenuk-splash-seen";
 
 type SplashPhase = "boot" | "show" | "fade" | "done";
 
@@ -42,7 +41,7 @@ export function LenukSplashScreen({ onVisibilityChange, ready = true }: LenukSpl
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const alreadySeen = localStorage.getItem(STORAGE_KEY) === "1";
+    const alreadySeen = localStorage.getItem(STORAGE_KEYS.splashSeen) === "1";
     if (alreadySeen) {
       setDocumentLoaded(true);
       setMinDurationReached(true);
@@ -73,7 +72,7 @@ export function LenukSplashScreen({ onVisibilityChange, ready = true }: LenukSpl
   useEffect(() => {
     if (!canClose) return;
 
-    localStorage.setItem(STORAGE_KEY, "1");
+    localStorage.setItem(STORAGE_KEYS.splashSeen, "1");
     setPhase("fade");
 
     fadeTimerRef.current = window.setTimeout(() => {
