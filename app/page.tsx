@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, Keyboard, Pencil, Play, RotateCcw, Shuffle, SlidersHorizontal, Trophy, User } from "lucide-react";
+import { ArrowRight, BarChart3, Keyboard, Pencil, Play, RotateCcw, Shuffle, SlidersHorizontal, Trophy, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -19,6 +19,7 @@ import { BeginnerGuide } from "@/components/typing/beginner-guide";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds, type EngineSnapshot } from "@/lib/engine/typing-engine";
+import { recordRunCompleted, recordRunStarted } from "@/lib/user-stats";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
@@ -225,6 +226,7 @@ export default function HomePage() {
   const [completedReplayRun, setCompletedReplayRun] = useState<ReplayRun | null>(null);
   const [replayView, setReplayView] = useState<ReplayViewState | null>(null);
   const submittedRef = useRef(false);
+  const runStartedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
   const replayCaptureRef = useRef<{
     text: string;
@@ -322,6 +324,14 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (!typingEnabled) return;
+    if (!snapshot.metrics.started || runStartedRef.current) return;
+    if (!userName || !userCountry) return;
+    runStartedRef.current = true;
+    recordRunStarted({ name: userName, country: userCountry });
+  }, [snapshot.metrics.started, typingEnabled, userCountry, userName]);
+
+  useEffect(() => {
     if (!snapshot.metrics.finished || submittedRef.current || !userName || !userCountry) return;
 
     submittedRef.current = true;
@@ -352,6 +362,24 @@ export default function HomePage() {
         requestedWordCount: mode === "text" ? textWordCount : null
       }
     };
+
+    recordRunCompleted({
+      userName,
+      country: userCountry,
+      durationSeconds: duration,
+      difficulty,
+      mode,
+      wpm: snapshot.metrics.wpm,
+      rawWpm: snapshot.metrics.rawWpm,
+      accuracy: snapshot.metrics.accuracy,
+      errors: snapshot.metrics.errors,
+      promptId,
+      wordCount: mode === "text" ? textWordCount : null,
+      languageCode: mode === "text" ? generatedTextContent.languageCode : null,
+      elapsedSeconds: snapshot.metrics.elapsed,
+      typedChars: snapshot.metrics.typedChars,
+      correctChars: snapshot.metrics.correctChars
+    });
 
     fetch("/api/results", {
       method: "POST",
@@ -513,6 +541,7 @@ export default function HomePage() {
     setReplayView(null);
     setCompletedReplayRun(null);
     submittedRef.current = false;
+    runStartedRef.current = false;
     setSaveStatus("idle");
   };
 
@@ -857,6 +886,14 @@ export default function HomePage() {
                       Next
                     </Button>
                   </Tooltip>
+                  <Link
+                    href="/stats"
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-border/70 bg-background/70 px-3 text-sm font-semibold transition hover:border-primary/40 hover:text-primary"
+                    aria-label="Open user stats"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    User stats
+                  </Link>
                   <Link
                     href="/leaderboard"
                     className="leaderboard-live-button group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
