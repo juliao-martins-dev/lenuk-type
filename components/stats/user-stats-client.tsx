@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { clearUserStats, readUserStats, type StoredRun, type UserStats } from "@/lib/user-stats";
+import { SiteCreditsFooter } from "../ui/site-credits-footer";
 
 function getStoredProfile() {
   if (typeof window === "undefined") return { name: "", country: "" };
@@ -337,6 +338,8 @@ export default function UserStatsClient() {
           </CardContent>
         </Card>
       </div>
+
+      <SiteCreditsFooter className="mt-5" />
     </main>
   );
 }
