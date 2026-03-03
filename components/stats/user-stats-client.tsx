@@ -263,7 +263,6 @@ export default function UserStatsClient() {
                     <thead className="bg-card/90">
                       <tr className="border-b">
                         <Th>When</Th>
-                        <Th>Mode</Th>
                         <Th>Difficulty</Th>
                         <Th align="right">WPM</Th>
                         <Th align="right">Accuracy</Th>
@@ -278,7 +277,6 @@ export default function UserStatsClient() {
                         .map((run) => (
                           <tr key={run.id} className="border-b last:border-0">
                             <Td>{formatDate(run.at)}</Td>
-                            <Td className="capitalize">{run.mode}</Td>
                             <Td className="capitalize">{run.difficulty}</Td>
                             <Td align="right" className="tabular-nums">
                               {run.wpm}

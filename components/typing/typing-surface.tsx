@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { CountryPicker } from "@/components/ui/country-picker";
-import { Tabs } from "@/components/ui/tabs";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
@@ -33,9 +32,6 @@ const LazySplashScreen = dynamic(() => import("../ui/lenuk-splash-screen").then(
   ssr: false,
   loading: () => null
 });
-
-const CODE_SAMPLE_TEXT =
-  "function formatValues(values) {\n  return values\n    .filter(Boolean)\n    .map((item) => item.trim())\n    .join(\" \");\n}";
 
 const durationOptions: Array<{ label: string; value: DurationSeconds }> = [
   { label: "15s", value: 15 },
@@ -66,7 +62,6 @@ const typingLanguageOptions = listLanguages().map((language) => ({
 const supportedTypingLanguageCodes = new Set<SupportedLanguageCode>(
   typingLanguageOptions.map((option) => option.value as SupportedLanguageCode)
 );
-const supportedModes = new Set<"text" | "code">(["text", "code"]);
 const supportedDurations = new Set<DurationSeconds>(durationOptions.map((option) => option.value));
 const supportedDifficulties = new Set<DifficultyLevel>(difficultyOptions.map((option) => option.value));
 const supportedTextWordCounts = new Set<number>(textWordCountOptions.map((option) => Number(option.value)));
@@ -151,12 +146,6 @@ function getTypingLanguageCode() {
   return value && isSupportedTypingLanguageCode(value) ? value : DEFAULT_TYPING_LANGUAGE_CODE;
 }
 
-function getTypingMode() {
-  if (typeof window === "undefined") return "text" as const;
-  const value = localStorage.getItem(STORAGE_KEYS.typingMode);
-  return value && supportedModes.has(value as "text" | "code") ? (value as "text" | "code") : "text";
-}
-
 function getTypingDuration() {
   if (typeof window === "undefined") return 30 as DurationSeconds;
   const value = Number(localStorage.getItem(STORAGE_KEYS.typingDuration)) as DurationSeconds;
@@ -217,7 +206,6 @@ function getOrCreateContentSeed() {
 }
 
 export default function TypingSurface() {
-  const [mode, setMode] = useState<"text" | "code">("text");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy");
   const [baseContentSeed, setBaseContentSeed] = useState(DEFAULT_SEED);
@@ -279,17 +267,11 @@ export default function TypingSurface() {
     allowRepeat: true,
     difficulty: difficultyContentSettings.generatorDifficulty
   });
-  const currentText = useMemo(
-    () => (mode === "text" ? generatedTextContent.text : CODE_SAMPLE_TEXT),
-    [generatedTextContent.text, mode]
+  const currentText = generatedTextContent.text;
+  const promptId = useMemo(
+    () => `gen:${generatedTextContent.languageCode}:${generatedTextContent.seed}`,
+    [generatedTextContent.languageCode, generatedTextContent.seed]
   );
-  const promptId = useMemo(() => {
-    if (mode === "text") {
-      return `gen:${generatedTextContent.languageCode}:${generatedTextContent.seed}`;
-    }
-
-    return `code:${CODE_SAMPLE_TEXT.length}`;
-  }, [generatedTextContent.languageCode, generatedTextContent.seed, mode]);
   const onboardingComplete = Boolean(userName && userCountry);
   const requiresOnboarding = !onboardingComplete;
   const showProfileDialog = requiresOnboarding || isProfileDialogOpen;
@@ -321,7 +303,6 @@ export default function TypingSurface() {
       setUserCountry(existingCountry);
       setDraftCountry(existingCountry);
     }
-    setMode(getTypingMode());
     setDuration(getTypingDuration());
     setDifficulty(getTypingDifficulty());
     setTypingLanguageCode(getTypingLanguageCode());
@@ -364,7 +345,7 @@ export default function TypingSurface() {
       userId: getOrCreateUserId(),
       player: userName,
       country: userCountry,
-      mode,
+      mode: "text" as const,
       difficulty,
       durationSeconds: duration,
       wpm: snapshot.metrics.wpm,
@@ -376,10 +357,10 @@ export default function TypingSurface() {
         correctChars: snapshot.metrics.correctChars,
         typedChars: snapshot.metrics.typedChars,
         elapsed: snapshot.metrics.elapsed,
-        languageCode: mode === "text" ? generatedTextContent.languageCode : null,
-        contentSeed: mode === "text" ? generatedTextContent.seed : null,
-        tokenCount: mode === "text" ? generatedTextContent.tokens.length : null,
-        requestedWordCount: mode === "text" ? textWordCount : null
+        languageCode: generatedTextContent.languageCode,
+        contentSeed: generatedTextContent.seed,
+        tokenCount: generatedTextContent.tokens.length,
+        requestedWordCount: textWordCount
       }
     };
 
@@ -388,14 +369,14 @@ export default function TypingSurface() {
       country: userCountry,
       durationSeconds: duration,
       difficulty,
-      mode,
+      mode: "text",
       wpm: snapshot.metrics.wpm,
       rawWpm: snapshot.metrics.rawWpm,
       accuracy: snapshot.metrics.accuracy,
       errors: snapshot.metrics.errors,
       promptId,
-      wordCount: mode === "text" ? textWordCount : null,
-      languageCode: mode === "text" ? generatedTextContent.languageCode : null,
+      wordCount: textWordCount,
+      languageCode: generatedTextContent.languageCode,
       elapsedSeconds: snapshot.metrics.elapsed,
       typedChars: snapshot.metrics.typedChars,
       correctChars: snapshot.metrics.correctChars
@@ -411,7 +392,7 @@ export default function TypingSurface() {
         setSaveStatus("saved");
       })
       .catch(() => setSaveStatus("error"));
-  }, [difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, mode, promptId, snapshot.metrics, textWordCount, userCountry, userName]);
+  }, [difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, promptId, snapshot.metrics, textWordCount, userCountry, userName]);
 
   useEffect(() => {
     return () => {
@@ -567,12 +548,10 @@ export default function TypingSurface() {
 
   const handleRestart = (options?: {
     nextDuration?: DurationSeconds;
-    targetMode?: "text" | "code";
     regenerateText?: boolean;
   }) => {
     const nextDuration = options?.nextDuration ?? duration;
-    const targetMode = options?.targetMode ?? mode;
-    const shouldRegenerateText = Boolean(options?.regenerateText && targetMode === "text");
+    const shouldRegenerateText = Boolean(options?.regenerateText);
 
     resetRunUiState();
 
@@ -586,7 +565,6 @@ export default function TypingSurface() {
   };
 
   const shufflePrompt = () => {
-    if (mode !== "text") return;
     resetRunUiState();
     regenerateTextContent(`shuffle:${crypto.randomUUID()}`);
     focusTypingSoon();
@@ -748,7 +726,7 @@ export default function TypingSurface() {
                     <span>{userName || "Guest"}</span>
                   </div>
                   <span className="inline-flex items-center rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
-                    {mode === "text" ? "Text" : "Code"}
+                    Text practice
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
                     <span
@@ -765,7 +743,7 @@ export default function TypingSurface() {
                           ? "Finished"
                           : "Ready"}
                   </span>
-                  {onboardingComplete && mode === "text" && (
+                  {onboardingComplete && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -804,24 +782,7 @@ export default function TypingSurface() {
                 </p>
               </div>
 
-              <div className="grid gap-2 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Tabs
-                    ariaLabel="Typing mode"
-                    value={mode}
-                    onValueChange={(next) => {
-                      const nextMode = next as "text" | "code";
-                      localStorage.setItem(STORAGE_KEYS.typingMode, nextMode);
-                      setMode(nextMode);
-                      handleRestart({ targetMode: nextMode, regenerateText: nextMode === "text" });
-                    }}
-                    options={[
-                      { label: "Text", value: "text" },
-                      { label: "Code", value: "code" }
-                    ]}
-                  />
-                </div>
-
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-[linear-gradient(to_bottom,hsl(var(--background)/0.50),hsl(var(--background)/0.28))] p-2 shadow-sm shadow-black/[0.04] ring-1 ring-white/10 backdrop-blur dark:ring-white/5">
                   <div
                     aria-hidden
@@ -837,7 +798,6 @@ export default function TypingSurface() {
                       value={typingLanguageCode}
                       aria-label="Typing language"
                       options={typingLanguageOptions}
-                      disabled={mode !== "text"}
                       onChange={(event) => {
                         const nextLanguageCode = event.target.value;
                         if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
@@ -852,7 +812,6 @@ export default function TypingSurface() {
                       value={String(textWordCount)}
                       aria-label="Word count"
                       options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
-                      disabled={mode !== "text"}
                       onChange={(event) => {
                         const nextWordCount = Number(event.target.value);
                         if (!supportedTextWordCounts.has(nextWordCount)) return;
@@ -900,8 +859,8 @@ export default function TypingSurface() {
                       Restart
                     </Button>
                   </Tooltip>
-                  <Tooltip text={mode === "text" ? "Next content" : "Start next run"}>
-                    <Button variant="ghost" onClick={() => handleRestart({ regenerateText: mode === "text" })}>
+                  <Tooltip text="Next content">
+                    <Button variant="ghost" onClick={() => handleRestart({ regenerateText: true })}>
                       <ArrowRight className="mr-1 h-4 w-4" />
                       Next
                     </Button>
@@ -953,7 +912,6 @@ export default function TypingSurface() {
                 statuses={promptStatuses}
                 index={promptIndex}
                 strokeVersion={promptStrokeVersion}
-                mode={mode}
                 capture={capture}
                 enabled={typingEnabled && !isReplaying}
                 finished={isRunFinished}
@@ -961,7 +919,6 @@ export default function TypingSurface() {
 
               <BeginnerGuide
                 typingLanguageCode={typingLanguageCode}
-                mode={mode}
                 onFocusPrompt={focusTypingSoon}
                 canFocusPrompt={typingEnabled && !isRunFinished}
               />
@@ -993,11 +950,11 @@ export default function TypingSurface() {
                     Restart
                   </Button>
                 </Tooltip>
-                <Tooltip text={mode === "text" ? "Next content" : "Start next run"}>
+                <Tooltip text="Next content">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleRestart({ regenerateText: mode === "text" })}
+                    onClick={() => handleRestart({ regenerateText: true })}
                   >
                     <ArrowRight className="mr-1 h-4 w-4" />
                     Next

@@ -65,12 +65,6 @@ function getStatusBadgeClasses(status: LeaderboardStatus) {
   return "border-border/80 bg-background/70 text-muted-foreground";
 }
 
-function getModeChipClasses(mode: string) {
-  return mode === "code"
-    ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-    : "border-primary/20 bg-primary/10 text-primary";
-}
-
 function getDifficultyChipClasses(difficulty: string) {
   if (difficulty === "hard") {
     return "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300";
@@ -160,7 +154,6 @@ export default function LeaderboardPage() {
   const [status, setStatus] = useState<LeaderboardStatus>("loading");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [query, setQuery] = useState("");
-  const [modeFilter, setModeFilter] = useState("all");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("leaderboard");
 
@@ -231,10 +224,6 @@ export default function LeaderboardPage() {
     return { total, topWpm, avgAccuracy, avgWpm, activeCountries };
   }, [items]);
 
-  const modeOptions = useMemo(() => {
-    return ["all", ...Array.from(new Set(items.map((item) => item.mode).filter(Boolean))).sort()];
-  }, [items]);
-
   const difficultyOptions = useMemo(() => {
     return ["all", ...Array.from(new Set(items.map((item) => item.difficulty).filter(Boolean))).sort()];
   }, [items]);
@@ -253,10 +242,9 @@ export default function LeaderboardPage() {
         countryCode.includes(normalizedQuery) ||
         country.includes(normalizedQuery);
 
-      const matchesMode = modeFilter === "all" || item.mode === modeFilter;
       const matchesDifficulty = difficultyFilter === "all" || item.difficulty === difficultyFilter;
 
-      return matchesQuery && matchesMode && matchesDifficulty;
+      return matchesQuery && matchesDifficulty;
     });
 
     if (sortBy === "leaderboard") {
@@ -277,12 +265,11 @@ export default function LeaderboardPage() {
       rank: index + 1,
       score: Math.round(rankScore(item) * 10) / 10
     }));
-  }, [items, query, modeFilter, difficultyFilter, sortBy]);
+  }, [items, query, difficultyFilter, sortBy]);
 
-  const hasActiveFilters =
-    query.trim().length > 0 || modeFilter !== "all" || difficultyFilter !== "all" || sortBy !== "leaderboard";
+  const hasActiveFilters = query.trim().length > 0 || difficultyFilter !== "all" || sortBy !== "leaderboard";
   const podiumItems = rankedItems.slice(0, 3);
-  const podiumKey = `${query}|${modeFilter}|${difficultyFilter}|${sortBy}|${rankedItems.length}`;
+  const podiumKey = `${query}|${difficultyFilter}|${sortBy}|${rankedItems.length}`;
   const now = Date.now();
 
   const lastUpdatedLabel = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : "Waiting for first sync";
@@ -372,7 +359,7 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="rounded-xl border border-border/70 bg-background/55 p-3 shadow-sm backdrop-blur">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto] lg:items-end">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))_auto] lg:items-end">
                 <label className="relative block">
                   <span className="sr-only">Search players or countries</span>
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -383,8 +370,6 @@ export default function LeaderboardPage() {
                     className="h-10 w-full rounded-lg border border-input/80 bg-background/80 pl-9 pr-3 text-sm outline-none transition focus-visible:border-primary/45 focus-visible:ring-2 focus-visible:ring-primary/20"
                   />
                 </label>
-
-                <SelectControl label="Mode" value={modeFilter} onChange={setModeFilter} options={modeOptions} />
 
                 <SelectControl
                   label="Difficulty"
@@ -404,7 +389,6 @@ export default function LeaderboardPage() {
                   type="button"
                   onClick={() => {
                     setQuery("");
-                    setModeFilter("all");
                     setDifficultyFilter("all");
                     setSortBy("leaderboard");
                   }}
@@ -487,7 +471,6 @@ export default function LeaderboardPage() {
                     type="button"
                     onClick={() => {
                       setQuery("");
-                      setModeFilter("all");
                       setDifficultyFilter("all");
                       setSortBy("leaderboard");
                     }}
@@ -542,8 +525,8 @@ export default function LeaderboardPage() {
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Chip className={getModeChipClasses(item.mode)}>{item.mode}</Chip>
                           <Chip className={getDifficultyChipClasses(item.difficulty)}>{item.difficulty}</Chip>
+                          <Chip className="border-border/80 bg-background/70 text-foreground">{item.durationSeconds}s</Chip>
                         </div>
 
                         <p className="mt-3 text-xs text-muted-foreground" title={timestamp}>
@@ -631,7 +614,6 @@ export default function LeaderboardPage() {
 
                             <Td>
                               <div className="flex flex-wrap items-center gap-2">
-                                <Chip className={getModeChipClasses(item.mode)}>{item.mode}</Chip>
                                 <Chip className={getDifficultyChipClasses(item.difficulty)}>{item.difficulty}</Chip>
                                 <Chip className="border-border/80 bg-background/70 text-foreground">{item.durationSeconds}s</Chip>
                               </div>

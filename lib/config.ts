@@ -3,7 +3,6 @@ export const STORAGE_KEYS = {
   userName: "lenuk-user-name",
   userCountry: "lenuk-user-country",
   typingLanguage: "lenuk-typing-language",
-  typingMode: "lenuk-typing-mode",
   typingDuration: "lenuk-typing-duration",
   typingDifficulty: "lenuk-typing-difficulty",
   typingWordCount: "lenuk-typing-word-count",

@@ -13,7 +13,6 @@ const COPY_LANG_KEY = "lenuk-guide-lang";
 
 interface BeginnerGuideProps {
   typingLanguageCode: string;
-  mode: "text" | "code";
   onFocusPrompt: () => void;
   canFocusPrompt: boolean;
 }
@@ -46,7 +45,7 @@ function getDefaultGuideLanguage(typingLanguageCode: string): GuideCopyLanguage 
   return typingLanguageCode === "tet-TL" ? "tet" : "en";
 }
 
-function BeginnerGuideContent({ typingLanguageCode, mode, onFocusPrompt, canFocusPrompt }: BeginnerGuideProps) {
+function BeginnerGuideContent({ typingLanguageCode, onFocusPrompt, canFocusPrompt }: BeginnerGuideProps) {
   const [hidden, setHidden] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
   const [copyLanguage, setCopyLanguage] = useState<GuideCopyLanguage>(getDefaultGuideLanguage(typingLanguageCode));
@@ -73,17 +72,13 @@ function BeginnerGuideContent({ typingLanguageCode, mode, onFocusPrompt, canFocu
       ? "Guia badak ba ema hahuu atu aprende tipu lalais."
       : "Quick beginner guide so first-time users can start typing confidently.";
 
-  const helperNote = useMemo(() => {
-    if (mode === "code") {
-      return copyLanguage === "tet"
-        ? "Mode code uza snippet fixu. Selektor lingua no liafuan sei desativa."
-        : "Code mode uses a fixed snippet. Language and word count controls are disabled.";
-    }
-
-    return copyLanguage === "tet"
-      ? "Mode text suporta English no Tetun ho gerasaun kontentu aleatoriu (seeded)."
-      : "Text mode supports English and Tetun with deterministic generated content.";
-  }, [copyLanguage, mode]);
+  const helperNote = useMemo(
+    () =>
+      copyLanguage === "tet"
+        ? "Prompt text suporta English no Tetun ho gerasaun kontentu aleatoriu (seeded)."
+        : "Text prompts support English and Tetun with deterministic generated content.",
+    [copyLanguage]
+  );
 
   if (hidden) {
     return (
@@ -191,7 +186,7 @@ function BeginnerGuideContent({ typingLanguageCode, mode, onFocusPrompt, canFocu
             <div className="flex flex-wrap gap-2">
               <ShortcutChip icon={<Keyboard className="h-3.5 w-3.5" />} label="Esc" hint="Restart" />
               <ShortcutChip icon={<Keyboard className="h-3.5 w-3.5" />} label="Click" hint="Focus prompt" />
-              {mode === "text" && <ShortcutChip icon={<Play className="h-3.5 w-3.5" />} label="Next" hint="New text" />}
+              <ShortcutChip icon={<Play className="h-3.5 w-3.5" />} label="Next" hint="New text" />
             </div>
 
             <Button

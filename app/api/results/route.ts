@@ -17,7 +17,7 @@ const REQUIRED_FIELDS = [
   "errors",
   "promptId"
 ] as const;
-const ALLOWED_MODES = new Set(["text", "code"]);
+const ALLOWED_MODES = new Set(["text"]);
 const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 const ALLOWED_DURATIONS = new Set([15, 30, 60]);
 const DIFFICULTY_WEIGHTS: Record<string, number> = {

@@ -12,7 +12,7 @@ export type StoredRun = {
   accuracy: number;
   errors: number;
   durationSeconds: DurationSeconds;
-  mode: "text" | "code";
+  mode: "text";
   difficulty: DifficultyValue;
   wordCount: number | null;
   languageCode: string | null;
