@@ -56,7 +56,7 @@ export type RunStartedPayload = {
 };
 
 const STORAGE_KEY = "lenuk-user-stats-v1";
-const RUN_LIMIT = 220;
+const RUN_LIMIT = 1500;
 
 function nowIso() {
   return new Date().toISOString();
