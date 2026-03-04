@@ -69,7 +69,6 @@ export const DAY_LABELS = [
 const HEATMAP_WEEKS = 53;
 const HEATMAP_DAYS = HEATMAP_WEEKS * 7;
 const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const monthFormatter = new Intl.DateTimeFormat(undefined, { month: "short" });
 const joinedFormatter = new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric" });
 const dayFormatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
 

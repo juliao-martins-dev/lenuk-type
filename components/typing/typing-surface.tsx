@@ -281,6 +281,8 @@ export default function TypingSurface() {
   const isRunFinished = snapshot.metrics.finished;
   const focusTypingInput = capture.focusInput;
   const blurTypingInput = capture.blurInput;
+  const handleExternalKeyDown = capture.handleExternalKeyDown;
+  const isCaptureFocused = capture.isFocused;
   const isReplaying = replayView !== null;
   const promptIndex = replayView?.index ?? snapshot.index;
   const promptStatuses = replayView?.statuses ?? snapshot.statuses;
@@ -430,7 +432,7 @@ export default function TypingSurface() {
   }, [blurTypingInput, isSplashVisible, showProfileDialog]);
 
   useEffect(() => {
-    if (!typingEnabled || isRunFinished || isReplaying || capture.isFocused) return;
+    if (!typingEnabled || isRunFinished || isReplaying || isCaptureFocused) return;
 
     const handleWindowKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -449,14 +451,14 @@ export default function TypingSurface() {
       if (event.key === "Tab") return;
 
       focusTypingInput();
-      const handled = capture.handleExternalKeyDown(event);
+      const handled = handleExternalKeyDown(event);
       if (handled) return;
       event.preventDefault();
     };
 
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
-  }, [capture.handleExternalKeyDown, capture.isFocused, focusTypingInput, isReplaying, isRunFinished, typingEnabled]);
+  }, [focusTypingInput, handleExternalKeyDown, isCaptureFocused, isReplaying, isRunFinished, typingEnabled]);
 
   useEffect(() => {
     if (!snapshot.metrics.finished) return;
