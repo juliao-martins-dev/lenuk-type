@@ -1,11 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-
-const siteName = "Lenuk Type";
-const siteUrl = "https://lenuktype.fun"; // ✅ CHANGE to your real domain
-const siteTitle = "Lenuk Type | Typing Test & Typing Speed Test";
-const siteDescription =
-  "Free typing test and typing speed test in English and Tetun. Lenuk Type is a fast Monkeytype alternative for Timor-Leste and global users.";
+import { siteDescription, siteName, siteTitle, siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -37,7 +32,7 @@ export const metadata: Metadata = {
   publisher: siteName,
 
   alternates: {
-    canonical: siteUrl, 
+    canonical: siteUrl
   },
 
   robots: {
