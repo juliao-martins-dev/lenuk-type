@@ -15,7 +15,7 @@ Type like a builder. Move like a machine.
 
 Fast, competitive typing practice with a live ranked leaderboard.
 
-[Live App](https://lenuk-type.vercel.app) | [Leaderboard](https://lenuk-type.vercel.app/leaderboard)
+[Live App](https://lenuktype.fun) | [Leaderboard](https://lenuktype.fun/leaderboard)
 
 </div>
 
@@ -39,14 +39,14 @@ LENUK TYPE is a modern typing arena inspired by Monkeytype, tuned for focused de
   <table>
     <tr>
       <td align="center">
-        <a href="https://lenuk-type.vercel.app/leaderboard">
+        <a href="https://lenuktype.fun/leaderboard">
           <img src="https://img.shields.io/badge/View-Live%20Leaderboard-0f172a?style=for-the-badge&logo=vercel&logoColor=white" alt="View Live Leaderboard" />
         </a>
         <br />
-        <sub>Direct from production: <code>https://lenuk-type.vercel.app/leaderboard</code></sub>
+        <sub>Direct from production: <code>https://lenuktype.fun/leaderboard</code></sub>
         <br /><br />
-        <a href="https://lenuk-type.vercel.app/leaderboard">
-          <img src="https://image.thum.io/get/width/1400/noanimate/https://lenuk-type.vercel.app/leaderboard" alt="Lenuk Type Live Leaderboard Preview" width="1000" />
+        <a href="https://lenuktype.fun/leaderboard">
+          <img src="https://image.thum.io/get/width/1400/noanimate/https://lenuktype.fun/leaderboard" alt="Lenuk Type Live Leaderboard Preview" width="1000" />
         </a>
       </td>
     </tr>
