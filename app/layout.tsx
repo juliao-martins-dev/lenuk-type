@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { siteDescription, siteName, siteTitle, siteUrl } from "@/lib/site";
+import { siteAlternateNames, siteDescription, siteKeywords, siteName, siteOgImageAlt, siteTitle, siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -14,18 +14,7 @@ export const metadata: Metadata = {
   applicationName: siteName,
   category: "education",
 
-  keywords: [
-    "typing game",
-    "typing test",
-    "typing speed test",
-    "teste tipu",
-    "teste tipu lalais",
-    "typing Tetun",
-    "typing test Tetun",
-    "Monkeytype alternative",
-    "Lenuk Type",
-    "Timor-Leste typing test",
-  ],
+  keywords: siteKeywords,
 
   authors: [{ name: siteName }],
   creator: siteName,
@@ -81,7 +70,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Lenuk Type — Typing Test & Typing Speed Test",
+        alt: siteOgImageAlt,
       },
     ],
   },
@@ -131,9 +120,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: siteName,
+    alternateName: siteAlternateNames,
     url: siteUrl,
     description: siteDescription,
     inLanguage: ["en", "tet"],
+    keywords: siteKeywords.join(", "),
+    areaServed: {
+      "@type": "Country",
+      name: "Timor-Leste",
+    },
   };
 
   return (

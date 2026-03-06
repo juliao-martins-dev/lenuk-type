@@ -3,10 +3,14 @@
 
 <url>
 <loc>https://lenuktype.fun/</loc>
+<changefreq>daily</changefreq>
+<priority>1.0</priority>
 </url>
 
 <url>
 <loc>https://lenuktype.fun/leaderboard/</loc>
+<changefreq>hourly</changefreq>
+<priority>0.7</priority>
 </url>
 
 </urlset>

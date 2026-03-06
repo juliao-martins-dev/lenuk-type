@@ -693,6 +693,33 @@ export default function TypingSurface() {
       <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-start px-4 py-5 md:py-6">
         <Card className="w-full border-0 bg-transparent shadow-none">
           <CardContent className="space-y-3 p-0">
+            <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-background/35 p-4 shadow-sm backdrop-blur md:p-5" aria-labelledby="home-title">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,hsl(var(--primary)/0.16),transparent_34%),radial-gradient(circle_at_90%_8%,hsl(var(--primary)/0.08),transparent_26%)]"
+              />
+              <div className="relative space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                  Timor-Leste typing practice
+                </div>
+                <div className="space-y-2">
+                  <h1 id="home-title" className="text-2xl font-semibold tracking-tight md:text-4xl">
+                    Lenuk Type
+                  </h1>
+                  <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
+                    Free typing test in Tetun and English for Timor-Leste. If you are searching for Lenuk or Lenuk
+                    Timor, this is the official Lenuk Type typing web app.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span className="rounded-full border bg-background/60 px-2.5 py-1">Tetun + English prompts</span>
+                  <span className="rounded-full border bg-background/60 px-2.5 py-1">Fast browser typing test</span>
+                  <span className="rounded-full border bg-background/60 px-2.5 py-1">Leaderboard for Timor-Leste users</span>
+                </div>
+              </div>
+            </section>
+
             <section className="rounded-xl border border-border/60 bg-background/20 p-2.5 shadow-sm backdrop-blur">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -976,6 +1003,64 @@ export default function TypingSurface() {
                 Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
               </p>
             </div>
+
+            <section className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" aria-labelledby="lenuk-about-title">
+              <article className="rounded-2xl border border-border/70 bg-background/35 p-4 shadow-sm backdrop-blur md:p-5">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
+                    <Keyboard className="h-3.5 w-3.5 text-primary" />
+                    Why Lenuk Type ranks for Timor-Leste searches
+                  </div>
+                  <div className="space-y-2">
+                    <h2 id="lenuk-about-title" className="text-xl font-semibold tracking-tight">
+                      Built for Lenuk, Lenuk Timor, and typing practice in Timor-Leste
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Lenuk Type is a browser-based typing speed test designed for students, job seekers, and everyday
+                      keyboard practice in Timor-Leste. The app focuses on Tetun and English content, instant play, and
+                      a clean leaderboard experience.
+                    </p>
+                  </div>
+                  <ul className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">Practice Tetun and English in one place.</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">Run timed typing tests directly in the browser.</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">Track speed, raw WPM, accuracy, and errors.</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">Compare results on the live leaderboard.</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-border/70 bg-background/35 p-4 shadow-sm backdrop-blur md:p-5">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
+                    <Trophy className="h-3.5 w-3.5 text-primary" />
+                    FAQ
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <h2 className="text-base font-semibold">Is Lenuk Type the same as Lenuk Timor?</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Yes. Some users search for Lenuk Timor when they want to find Lenuk Type, the typing web app
+                        focused on Timor-Leste.
+                      </p>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold">What can I practice here?</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        You can practice typing speed, accuracy, and rhythm with Tetun and English text prompts.
+                      </p>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold">Does Lenuk Type include rankings?</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Yes. Completed runs can appear on the live leaderboard so visitors can compare recent typing
+                        performance.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </section>
           </CardContent>
         </Card>
         <SiteCreditsFooter className="mt-3" />
