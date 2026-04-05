@@ -1,4 +1,7 @@
+"use client";
+
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 function VercelLogo({ className }: { className?: string }) {
@@ -55,6 +58,7 @@ function BrandBadge({
 }
 
 export function SiteCreditsFooter({ className }: { className?: string }) {
+  const { t } = useTranslation();
   return (
     <footer className={cn("w-full", className)}>
       <div className="relative overflow-hidden rounded-xl border border-border/70 bg-background/45 p-3 shadow-sm backdrop-blur">
@@ -65,14 +69,14 @@ export function SiteCreditsFooter({ className }: { className?: string }) {
         <div className="relative flex flex-col items-center gap-2.5">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <BrandBadge
-              label="Deploy in"
+              label={t("footerDeployIn")}
               href="https://vercel.com"
               icon={<VercelLogo className="h-3.5 w-3.5" />}
               name="Vercel"
               iconClassName="text-foreground dark:text-white"
             />
             <BrandBadge
-              label="Powered by"
+              label={t("footerPoweredBy")}
               href="https://supabase.com"
               icon={<SupabaseLogo className="h-3.5 w-3.5" />}
               name="Supabase"

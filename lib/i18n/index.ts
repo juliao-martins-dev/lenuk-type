@@ -229,6 +229,8 @@ const en = {
   notFoundDesc: "The page link may be incorrect or no longer exists. You can return to the home page and continue typing in one click.",
   notFoundCheckUrl: "Check the URL spelling",
   notFoundReturnHome: "Return home to start a test",
+  footerPoweredBy: "Powered by",
+  footerDeployIn: "Deploy in",
 };
 
 const ar: typeof en = {
@@ -433,6 +435,8 @@ const ar: typeof en = {
   notFoundDesc: "رابط الصفحة قد يكون غير صحيح أو لم يعد موجودًا. يمكنك العودة للصفحة الرئيسية ومتابعة الكتابة بنقرة واحدة.",
   notFoundCheckUrl: "تحقق من إملاء الرابط",
   notFoundReturnHome: "العودة للرئيسية لبدء اختبار",
+  footerPoweredBy: "مدعوم بـ",
+  footerDeployIn: "نشر في",
 };
 
 const vi: typeof en = {
@@ -637,6 +641,8 @@ const vi: typeof en = {
   notFoundDesc: "Liên kết trang có thể không chính xác hoặc không còn tồn tại. Bạn có thể quay về trang chủ và tiếp tục gõ phím chỉ trong một cú nhấp.",
   notFoundCheckUrl: "Kiểm tra chính tả URL",
   notFoundReturnHome: "Về trang chủ để bắt đầu bài kiểm tra",
+  footerPoweredBy: "Được hỗ trợ bởi",
+  footerDeployIn: "Triển khai trên",
 };
 
 const ru: typeof en = {
@@ -841,6 +847,8 @@ const ru: typeof en = {
   notFoundDesc: "Ссылка на страницу может быть неверной или страница больше не существует. Вы можете вернуться на главную и продолжить набор одним кликом.",
   notFoundCheckUrl: "Проверьте написание URL",
   notFoundReturnHome: "На главную, чтобы начать тест",
+  footerPoweredBy: "На базе",
+  footerDeployIn: "Развёрнуто в",
 };
 
 const id: typeof en = {
@@ -1045,6 +1053,8 @@ const id: typeof en = {
   notFoundDesc: "Tautan halaman mungkin salah atau sudah tidak ada. Anda dapat kembali ke beranda dan melanjutkan mengetik dalam satu klik.",
   notFoundCheckUrl: "Periksa ejaan URL",
   notFoundReturnHome: "Kembali ke beranda untuk memulai tes",
+  footerPoweredBy: "Didukung oleh",
+  footerDeployIn: "Deploy di",
 };
 
 const tet: typeof en = {
@@ -1249,6 +1259,8 @@ const tet: typeof en = {
   notFoundDesc: "Ligasaun pájina bele la loos ka la eziste ona. Ita bele fila ba uma atu kontinua hakerek ho klik ida.",
   notFoundCheckUrl: "Verifica hakerek URL",
   notFoundReturnHome: "Fila ba uma atu hahuu teste",
+  footerPoweredBy: "Sustentadu husi",
+  footerDeployIn: "Deploy iha",
 };
 
 const resources = {

@@ -28,7 +28,6 @@ type LeaderboardStatus = "loading" | "live" | "error";
 type SortOption = "leaderboard" | "wpm" | "accuracy" | "latest";
 
 const POLL_INTERVAL_MS = 5000;
-const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const DIFFICULTY_WEIGHTS: Record<string, number> = {
   easy: 1,
   medium: 1.08,
@@ -41,17 +40,22 @@ function formatTimestamp(value: string) {
   return date.toLocaleString();
 }
 
-function formatRelativeTime(value: string, now: number) {
+function toIntlLocale(lang: string): string {
+  return lang === "tet" ? "pt" : lang;
+}
+
+function formatRelativeTime(value: string, now: number, locale?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "unknown";
 
+  const rtf = new Intl.RelativeTimeFormat(toIntlLocale(locale ?? "en"), { numeric: "auto" });
   const diffMs = date.getTime() - now;
   const absMs = Math.abs(diffMs);
 
-  if (absMs < 60_000) return "just now";
-  if (absMs < 3_600_000) return relativeTimeFormatter.format(Math.round(diffMs / 60_000), "minute");
-  if (absMs < 86_400_000) return relativeTimeFormatter.format(Math.round(diffMs / 3_600_000), "hour");
-  return relativeTimeFormatter.format(Math.round(diffMs / 86_400_000), "day");
+  if (absMs < 60_000) return rtf.format(-Math.round(absMs / 1000), "second");
+  if (absMs < 3_600_000) return rtf.format(Math.round(diffMs / 60_000), "minute");
+  if (absMs < 86_400_000) return rtf.format(Math.round(diffMs / 3_600_000), "hour");
+  return rtf.format(Math.round(diffMs / 86_400_000), "day");
 }
 
 function getStatusBadgeClasses(status: LeaderboardStatus) {
@@ -141,7 +145,7 @@ function compareByLeaderboardRank(a: LeaderboardItem, b: LeaderboardItem) {
 }
 
 export default function LeaderboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const optionLabel = (option: string): string => {
     const map: Record<string, string> = {
@@ -495,7 +499,7 @@ export default function LeaderboardPage() {
                     const country = item.country ? countryName(item.country) : "";
                     const playerName = playerLabel(item);
                     const timestamp = formatTimestamp(item.createdAt);
-                    const relative = formatRelativeTime(item.createdAt, now);
+                    const relative = formatRelativeTime(item.createdAt, now, i18n.language);
 
                     return (
                       <article
@@ -562,7 +566,7 @@ export default function LeaderboardPage() {
                         const country = item.country ? countryName(item.country) : "";
                         const playerName = playerLabel(item);
                         const timestamp = formatTimestamp(item.createdAt);
-                        const relative = formatRelativeTime(item.createdAt, now);
+                        const relative = formatRelativeTime(item.createdAt, now, i18n.language);
                         const speedPercent =
                           stats.topWpm > 0 ? Math.max(7, Math.round((item.wpm / stats.topWpm) * 100)) : 0;
 

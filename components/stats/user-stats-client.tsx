@@ -46,7 +46,7 @@ const RANGE_KEY_MAP: Record<string, string> = {
 };
 
 export default function UserStatsClient() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [profile, setProfile] = useState(() => getStoredProfile());
   const [range, setRange] = useState<RangeId>("all");
@@ -86,7 +86,7 @@ export default function UserStatsClient() {
     URL.revokeObjectURL(url);
   };
 
-  const joinedAt = formatJoinedDate(view.stats.createdAt);
+  const joinedAt = formatJoinedDate(view.stats.createdAt, i18n.language);
   const hasRuns = view.hasAnyRuns;
 
   return (
@@ -108,7 +108,7 @@ export default function UserStatsClient() {
                   <InfoPill label={t("statsLabelJoined")} value={joinedAt} />
                   <InfoPill label={t("statsLabelCompleted")} value={view.stats.totals.testsCompleted} />
                   <InfoPill label={t("statsLabelCompletion")} value={`${view.completionRate}%`} />
-                  <InfoPill label={t("statsLabelUpdated")} value={view.stats.updatedAt ? formatRelativeTime(view.stats.updatedAt) : t("statsNever")} />
+                  <InfoPill label={t("statsLabelUpdated")} value={view.stats.updatedAt ? formatRelativeTime(view.stats.updatedAt, i18n.language) : t("statsNever")} />
                 </div>
               </div>
 
@@ -185,7 +185,7 @@ export default function UserStatsClient() {
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span>{view.heatmap.totalTests} {t("statsTests")}</span>
                 <span>{view.heatmap.activeDays} {t("statsActiveDays")}</span>
-                <span>{view.latestRun ? t("statsLatestRun", { time: formatRelativeTime(view.latestRun.at) }) : t("statsNoActivity")}</span>
+                <span>{view.latestRun ? t("statsLatestRun", { time: formatRelativeTime(view.latestRun.at, i18n.language) }) : t("statsNoActivity")}</span>
               </div>
             </div>
 
@@ -233,7 +233,7 @@ export default function UserStatsClient() {
                           {week.map((cell) => (
                             <div
                               key={cell.key}
-                              title={`${cell.count} run${cell.count === 1 ? "" : "s"} on ${formatShortDate(cell.date)}`}
+                              title={`${cell.count} run${cell.count === 1 ? "" : "s"} on ${formatShortDate(cell.date, i18n.language)}`}
                               className={`h-3 w-3 rounded-[3px] border ${heatmapCellClass(cell.level, cell.isFuture)}`}
                             />
                           ))}
@@ -332,7 +332,7 @@ export default function UserStatsClient() {
                           <p className="text-xs text-muted-foreground">{t("statsColWpm")}</p>
                         </div>
                         <div className="text-right text-xs text-muted-foreground">
-                          <p>{formatRelativeTime(run.at)}</p>
+                          <p>{formatRelativeTime(run.at, i18n.language)}</p>
                           <p>{formatDate(run.at)}</p>
                         </div>
                       </div>
@@ -363,7 +363,7 @@ export default function UserStatsClient() {
                         <tr key={run.id} className="border-b border-border last:border-0">
                           <Td>
                             <div>
-                              <p className="font-medium">{formatRelativeTime(run.at)}</p>
+                              <p className="font-medium">{formatRelativeTime(run.at, i18n.language)}</p>
                               <p className="text-xs text-muted-foreground">{formatDate(run.at)}</p>
                             </div>
                           </Td>

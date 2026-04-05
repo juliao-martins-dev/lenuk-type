@@ -68,9 +68,13 @@ export const DAY_LABELS = [
 
 const HEATMAP_WEEKS = 53;
 const HEATMAP_DAYS = HEATMAP_WEEKS * 7;
-const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const joinedFormatter = new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric" });
-const dayFormatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
+/** Map i18next language codes to BCP 47 locales supported by Intl. */
+function toIntlLocale(lang?: string): string | undefined {
+  if (!lang) return undefined;
+  if (lang === "tet") return "pt"; // Tetum not in Intl — use Portuguese (East Timor's other official language)
+  return lang;
+}
 
 export function emptyStats(): UserStats {
   return {
@@ -126,29 +130,30 @@ export function formatDate(iso: string) {
   return date.toLocaleString();
 }
 
-export function formatShortDate(value: string | Date) {
+export function formatShortDate(value: string | Date, locale?: string) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return dayFormatter.format(date);
+  return new Intl.DateTimeFormat(toIntlLocale(locale), { month: "short", day: "numeric" }).format(date);
 }
 
-export function formatRelativeTime(iso: string) {
+export function formatRelativeTime(iso: string, locale?: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "unknown";
 
+  const rtf = new Intl.RelativeTimeFormat(toIntlLocale(locale), { numeric: "auto" });
   const diffMs = date.getTime() - Date.now();
   const absMs = Math.abs(diffMs);
 
-  if (absMs < 60_000) return "just now";
-  if (absMs < 3_600_000) return relativeTimeFormatter.format(Math.round(diffMs / 60_000), "minute");
-  if (absMs < 86_400_000) return relativeTimeFormatter.format(Math.round(diffMs / 3_600_000), "hour");
-  return relativeTimeFormatter.format(Math.round(diffMs / 86_400_000), "day");
+  if (absMs < 60_000) return rtf.format(-Math.round(absMs / 1000), "second");
+  if (absMs < 3_600_000) return rtf.format(Math.round(diffMs / 60_000), "minute");
+  if (absMs < 86_400_000) return rtf.format(Math.round(diffMs / 3_600_000), "hour");
+  return rtf.format(Math.round(diffMs / 86_400_000), "day");
 }
 
-export function formatJoinedDate(iso: string) {
+export function formatJoinedDate(iso: string, locale?: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "today";
-  return joinedFormatter.format(date);
+  return new Intl.DateTimeFormat(toIntlLocale(locale), { month: "short", year: "numeric" }).format(date);
 }
 
 export function startOfLocalDay(date: Date) {
