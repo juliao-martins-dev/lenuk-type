@@ -5,18 +5,19 @@ export type UILanguageCode = "en" | "ar" | "vi" | "ru" | "id" | "tet";
 
 export interface UILanguageConfig {
   code: UILanguageCode;
+  /** ISO 3166-1 alpha-2 country code for the flag image */
+  countryCode: string;
   label: string;
-  flag: string;
   dir: "ltr" | "rtl";
 }
 
 export const UI_LANGUAGES: UILanguageConfig[] = [
-  { code: "en",  label: "English",          flag: "🇬🇧", dir: "ltr" },
-  { code: "ar",  label: "العربية",           flag: "🇸🇦", dir: "rtl" },
-  { code: "vi",  label: "Tiếng Việt",        flag: "🇻🇳", dir: "ltr" },
-  { code: "ru",  label: "Русский",           flag: "🇷🇺", dir: "ltr" },
-  { code: "id",  label: "Bahasa Indonesia",  flag: "🇮🇩", dir: "ltr" },
-  { code: "tet", label: "Tetun",             flag: "🇹🇱", dir: "ltr" },
+  { code: "en",  countryCode: "GB", label: "English",          dir: "ltr" },
+  { code: "ar",  countryCode: "SA", label: "العربية",           dir: "rtl" },
+  { code: "vi",  countryCode: "VN", label: "Tiếng Việt",        dir: "ltr" },
+  { code: "ru",  countryCode: "RU", label: "Русский",           dir: "ltr" },
+  { code: "id",  countryCode: "ID", label: "Bahasa Indonesia",  dir: "ltr" },
+  { code: "tet", countryCode: "TL", label: "Tetun",             dir: "ltr" },
 ];
 
 export const STORAGE_KEY_UI_LANG = "lenuk-ui-language";

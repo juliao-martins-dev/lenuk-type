@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CountryFlag } from "@/components/ui/country-flag";
 import i18n, { UI_LANGUAGES, STORAGE_KEY_UI_LANG, type UILanguageCode } from "@/lib/i18n";
 
 interface DropdownPos {
@@ -30,7 +31,6 @@ export function LanguageSwitcher({ className }: { className?: string }) {
     };
   }, []);
 
-  // Recalculate position when opening
   const openDropdown = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
@@ -41,7 +41,6 @@ export function LanguageSwitcher({ className }: { className?: string }) {
     setOpen(true);
   };
 
-  // Close on outside click or scroll
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
@@ -78,7 +77,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             right: dropdownPos.right,
             zIndex: 9999,
           }}
-          className="min-w-[170px] overflow-hidden rounded-xl border border-border/70 bg-background shadow-xl shadow-black/20 backdrop-blur"
+          className="min-w-[185px] overflow-hidden rounded-xl border border-border/70 bg-background shadow-xl shadow-black/20 backdrop-blur"
         >
           {UI_LANGUAGES.map((lang) => (
             <button
@@ -87,7 +86,6 @@ export function LanguageSwitcher({ className }: { className?: string }) {
               aria-selected={lang.code === currentLang}
               type="button"
               onMouseDown={(e) => {
-                // Use mousedown so it fires before the outside-click handler
                 e.preventDefault();
                 selectLanguage(lang.code);
               }}
@@ -96,9 +94,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
                 lang.code === currentLang && "font-semibold text-primary"
               )}
             >
-              <span role="img" aria-label={lang.label} className="text-base leading-none">
-                {lang.flag}
-              </span>
+              <CountryFlag code={lang.countryCode} />
               <span className="flex-1 text-left">{lang.label}</span>
               {lang.code === currentLang && (
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
@@ -121,9 +117,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
         aria-haspopup="listbox"
         className="inline-flex h-7 items-center gap-1.5 rounded-full border bg-background/50 px-2.5 text-[11px] font-medium transition-colors hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span role="img" aria-label={active.label} className="text-sm leading-none">
-          {active.flag}
-        </span>
+        <CountryFlag code={active.countryCode} />
         <span className="hidden sm:inline">{active.code.toUpperCase()}</span>
         <ChevronDown
           className={cn(
