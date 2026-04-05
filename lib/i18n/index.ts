@@ -1259,7 +1259,7 @@ const tet: typeof en = {
   notFoundDesc: "Ligasaun pájina bele la loos ka la eziste ona. Ita bele fila ba uma atu kontinua hakerek ho klik ida.",
   notFoundCheckUrl: "Verifica hakerek URL",
   notFoundReturnHome: "Fila ba uma atu hahuu teste",
-  footerPoweredBy: "Sustentadu husi",
+  footerPoweredBy: "Haforsa ho",
   footerDeployIn: "Deploy iha",
 };
 
