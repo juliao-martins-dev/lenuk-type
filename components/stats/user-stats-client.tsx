@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Activity,
   ArrowLeft,
@@ -36,7 +37,16 @@ import {
 
 const monthFormatter = new Intl.DateTimeFormat(undefined, { month: "short" });
 
+const RANGE_KEY_MAP: Record<string, string> = {
+  day:     "rangeDay",
+  week:    "rangeWeek",
+  month:   "rangeMonth",
+  quarter: "rangeQuarter",
+  all:     "rangeAll",
+};
+
 export default function UserStatsClient() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [profile, setProfile] = useState(() => getStoredProfile());
   const [range, setRange] = useState<RangeId>("all");
@@ -86,21 +96,19 @@ export default function UserStatsClient() {
           <CardContent className="space-y-6 p-5 md:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">Lenuk Type stats</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("statsTitle")}</p>
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight md:text-3xl">
-                    <span>{profile.name || "Guest typist"}</span>
+                    <span>{profile.name || t("statsGuestName")}</span>
                     {profile.country ? <CountryFlag code={profile.country} className="shadow-sm" /> : null}
                   </div>
-                  <p className="max-w-2xl text-sm text-muted-foreground">
-                    A simpler local overview of your speed, accuracy, activity, and best runs.
-                  </p>
+                  <p className="max-w-2xl text-sm text-muted-foreground">{t("statsSubtitle")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <InfoPill label="Joined" value={joinedAt} />
-                  <InfoPill label="Completed" value={view.stats.totals.testsCompleted} />
-                  <InfoPill label="Completion" value={`${view.completionRate}%`} />
-                  <InfoPill label="Updated" value={view.stats.updatedAt ? formatRelativeTime(view.stats.updatedAt) : "never"} />
+                  <InfoPill label={t("statsLabelJoined")} value={joinedAt} />
+                  <InfoPill label={t("statsLabelCompleted")} value={view.stats.totals.testsCompleted} />
+                  <InfoPill label={t("statsLabelCompletion")} value={`${view.completionRate}%`} />
+                  <InfoPill label={t("statsLabelUpdated")} value={view.stats.updatedAt ? formatRelativeTime(view.stats.updatedAt) : t("statsNever")} />
                 </div>
               </div>
 
@@ -110,15 +118,15 @@ export default function UserStatsClient() {
                   className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition hover:bg-accent"
                 >
                   <Home className="h-4 w-4" />
-                  Back to typing
+                  {t("statsBtnBack")}
                 </Link>
                 <Button variant="ghost" className="h-10 border border-border px-3" onClick={handleExport} disabled={!hasRuns}>
                   <Download className="mr-2 h-4 w-4" />
-                  Export JSON
+                  {t("statsBtnExport")}
                 </Button>
                 <Button variant="ghost" className="h-10 border border-border px-3 text-destructive" onClick={handleReset}>
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Reset stats
+                  {t("statsBtnReset")}
                 </Button>
               </div>
             </div>
@@ -126,14 +134,14 @@ export default function UserStatsClient() {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium">Scope</p>
+                  <p className="text-sm font-medium">{t("statsScope")}</p>
                   <p className="text-sm text-muted-foreground">{view.scopeDescription}</p>
                 </div>
                 {view.bestOverall ? (
                   <div className="rounded-xl border border-border bg-background px-4 py-3 text-right">
-                    <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">All-time best</p>
+                    <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{t("statsAllTimeBest")}</p>
                     <p className="mt-1 text-2xl font-semibold tabular-nums">{view.bestOverall.wpm} WPM</p>
-                    <p className="text-sm text-muted-foreground">{view.bestOverall.accuracy}% accuracy</p>
+                    <p className="text-sm text-muted-foreground">{view.bestOverall.accuracy}% {t("statsColAccuracy").toLowerCase()}</p>
                   </div>
                 ) : null}
               </div>
@@ -150,7 +158,7 @@ export default function UserStatsClient() {
                         : "border-border bg-background text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {option.label}
+                    {t(RANGE_KEY_MAP[option.id] ?? "rangeAll")}
                   </button>
                 ))}
               </div>
@@ -159,37 +167,37 @@ export default function UserStatsClient() {
         </Card>
 
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <MetricCard icon={<Activity className="h-4 w-4" />} label="Runs" value={view.filteredRunsDesc.length} detail={range === "all" ? "all completed runs" : view.scopeLabel} />
-          <MetricCard icon={<TrendingUp className="h-4 w-4" />} label="Average speed" value={view.avgWpm} suffix="wpm" detail={`best ${view.bestWpm} wpm`} />
-          <MetricCard icon={<Target className="h-4 w-4" />} label="Accuracy" value={view.characterAccuracy} suffix="%" detail={`average ${view.avgAccuracy}%`} />
-          <MetricCard icon={<Clock3 className="h-4 w-4" />} label="Time typed" value={formatDuration(view.filteredTimeTypingSeconds)} detail={`${view.filteredTypedChars.toLocaleString()} chars`} />
-          <MetricCard icon={<Flame className="h-4 w-4" />} label="Current streak" value={view.currentStreak} suffix="days" detail={`best ${view.bestStreak} days`} />
-          <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label="Consistency" value={view.consistency} suffix="%" detail={`${view.filteredErrors} errors in scope`} />
+          <MetricCard icon={<Activity className="h-4 w-4" />} label={t("statsMetricRuns")} value={view.filteredRunsDesc.length} detail={range === "all" ? t("statsAllRuns") : view.scopeLabel} />
+          <MetricCard icon={<TrendingUp className="h-4 w-4" />} label={t("statsMetricSpeed")} value={view.avgWpm} suffix="wpm" detail={t("statsBestWpm", { n: view.bestWpm })} />
+          <MetricCard icon={<Target className="h-4 w-4" />} label={t("statsColAccuracy")} value={view.characterAccuracy} suffix="%" detail={t("statsAvgAccLabel", { n: view.avgAccuracy })} />
+          <MetricCard icon={<Clock3 className="h-4 w-4" />} label={t("statsMetricTimeTyped")} value={formatDuration(view.filteredTimeTypingSeconds)} detail={t("statsCharsTyped", { n: view.filteredTypedChars.toLocaleString() })} />
+          <MetricCard icon={<Flame className="h-4 w-4" />} label={t("statsMetricStreak")} value={view.currentStreak} suffix={t("statsSuffixDays")} detail={t("statsBestDays", { n: view.bestStreak })} />
+          <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label={t("statsMetricConsistency")} value={view.consistency} suffix="%" detail={t("statsErrorsInScope", { n: view.filteredErrors })} />
         </section>
 
         <Card className="border-border/80 bg-card shadow-sm">
           <CardContent className="space-y-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Activity</h2>
-                <p className="text-sm text-muted-foreground">Last 12 months of saved local runs.</p>
+                <h2 className="text-lg font-semibold tracking-tight">{t("statsActivity")}</h2>
+                <p className="text-sm text-muted-foreground">{t("statsActivityDesc")}</p>
               </div>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <span>{view.heatmap.totalTests} tests</span>
-                <span>{view.heatmap.activeDays} active days</span>
-                <span>{view.latestRun ? `latest ${formatRelativeTime(view.latestRun.at)}` : "no activity yet"}</span>
+                <span>{view.heatmap.totalTests} {t("statsTests")}</span>
+                <span>{view.heatmap.activeDays} {t("statsActiveDays")}</span>
+                <span>{view.latestRun ? t("statsLatestRun", { time: formatRelativeTime(view.latestRun.at) }) : t("statsNoActivity")}</span>
               </div>
             </div>
 
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="mb-3 flex items-center justify-end gap-2 text-xs text-muted-foreground">
-                <span>less</span>
+                <span>{t("statsLess")}</span>
                 <div className="flex items-center gap-1">
                   {[0, 1, 2, 3, 4].map((level) => (
                     <span key={level} className={`h-3 w-3 rounded-[3px] border ${heatmapCellClass(level as 0 | 1 | 2 | 3 | 4, false)}`} />
                   ))}
                 </div>
-                <span>more</span>
+                <span>{t("statsMore")}</span>
               </div>
 
               <div className="overflow-x-auto">
@@ -243,10 +251,10 @@ export default function UserStatsClient() {
             <CardContent className="space-y-4 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold tracking-tight">Recent pace</h2>
-                  <p className="text-sm text-muted-foreground">Latest runs in the current scope.</p>
+                  <h2 className="text-lg font-semibold tracking-tight">{t("statsRecentPace")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("statsRecentPaceDesc")}</p>
                 </div>
-                <span className="text-sm text-muted-foreground">{view.chartRuns.length} runs shown</span>
+                <span className="text-sm text-muted-foreground">{t("statsRunsShown", { n: view.chartRuns.length })}</span>
               </div>
 
               {view.hasFilteredRuns ? (
@@ -270,9 +278,9 @@ export default function UserStatsClient() {
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-3">
-                    <MiniMetric label="Best in scope" value={view.bestScopeRun ? `${view.bestScopeRun.wpm} wpm` : "-"} />
-                    <MiniMetric label="Characters" value={view.filteredTypedChars.toLocaleString()} />
-                    <MiniMetric label="Errors" value={view.filteredErrors} />
+                    <MiniMetric label={t("statsBestInScope")} value={view.bestScopeRun ? `${view.bestScopeRun.wpm} wpm` : "-"} />
+                    <MiniMetric label={t("statsCharacters")} value={view.filteredTypedChars.toLocaleString()} />
+                    <MiniMetric label={t("statsColErrors")} value={view.filteredErrors} />
                   </div>
                 </div>
               ) : (
@@ -285,12 +293,12 @@ export default function UserStatsClient() {
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold tracking-tight">Best by duration</h2>
-                  <p className="text-sm text-muted-foreground">Your strongest saved runs.</p>
+                  <h2 className="text-lg font-semibold tracking-tight">{t("statsBestByDur")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("statsBestByDurDesc")}</p>
                 </div>
                 <Link href="/" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
                   <ArrowLeft className="h-4 w-4" />
-                  New run
+                  {t("statsBtnBack")}
                 </Link>
               </div>
 
@@ -307,10 +315,10 @@ export default function UserStatsClient() {
           <CardContent className="space-y-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Recent runs</h2>
-                <p className="text-sm text-muted-foreground">Latest results in {view.scopeLabel}.</p>
+                <h2 className="text-lg font-semibold tracking-tight">{t("statsRecentRuns")}</h2>
+                <p className="text-sm text-muted-foreground">{t("statsRecentRunsDesc", { scope: view.scopeLabel })}</p>
               </div>
-              <span className="text-sm text-muted-foreground">Showing {view.displayRuns.length} of {view.filteredRunsDesc.length}</span>
+              <span className="text-sm text-muted-foreground">{t("statsShowingOf", { shown: view.displayRuns.length, total: view.filteredRunsDesc.length })}</span>
             </div>
 
             {view.hasFilteredRuns ? (
@@ -321,7 +329,7 @@ export default function UserStatsClient() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-2xl font-semibold tabular-nums">{run.wpm}</p>
-                          <p className="text-xs text-muted-foreground">WPM</p>
+                          <p className="text-xs text-muted-foreground">{t("statsColWpm")}</p>
                         </div>
                         <div className="text-right text-xs text-muted-foreground">
                           <p>{formatRelativeTime(run.at)}</p>
@@ -329,10 +337,10 @@ export default function UserStatsClient() {
                         </div>
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                        <MiniMetric label="Accuracy" value={`${run.accuracy}%`} />
-                        <MiniMetric label="Difficulty" value={run.difficulty} capitalize />
-                        <MiniMetric label="Errors" value={run.errors} />
-                        <MiniMetric label="Duration" value={`${run.durationSeconds}s`} />
+                        <MiniMetric label={t("statsColAccuracy")} value={`${run.accuracy}%`} />
+                        <MiniMetric label={t("statsColDifficulty")} value={run.difficulty} capitalize />
+                        <MiniMetric label={t("statsColErrors")} value={run.errors} />
+                        <MiniMetric label={t("statsColDuration")} value={`${run.durationSeconds}s`} />
                       </div>
                     </article>
                   ))}
@@ -342,12 +350,12 @@ export default function UserStatsClient() {
                   <table className="w-full min-w-[780px] text-left text-sm">
                     <thead className="bg-muted/30">
                       <tr className="border-b border-border">
-                        <Th>When</Th>
-                        <Th align="right">WPM</Th>
-                        <Th align="right">Accuracy</Th>
-                        <Th align="right">Errors</Th>
-                        <Th>Difficulty</Th>
-                        <Th align="right">Duration</Th>
+                        <Th>{t("statsColWhen")}</Th>
+                        <Th align="right">{t("statsColWpm")}</Th>
+                        <Th align="right">{t("statsColAccuracy")}</Th>
+                        <Th align="right">{t("statsColErrors")}</Th>
+                        <Th>{t("statsColDifficulty")}</Th>
+                        <Th align="right">{t("statsColDuration")}</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -379,14 +387,12 @@ export default function UserStatsClient() {
         <Card className="border-border/80 bg-card shadow-sm">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
             <div>
-              <p className="text-base font-semibold">Privacy</p>
-              <p className="text-sm text-muted-foreground">
-                Stats stay in this browser only. Export them or clear them whenever you want.
-              </p>
+              <p className="text-base font-semibold">{t("statsPrivacy")}</p>
+              <p className="text-sm text-muted-foreground">{t("statsPrivacyDesc")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <InfoPill label="Storage" value="Local only" />
-              <InfoPill label="Export" value="JSON" />
+              <InfoPill label={t("statsStorage")} value={t("statsLocalOnly")} />
+              <InfoPill label={t("statsExportLabel")} value="JSON" />
             </div>
           </CardContent>
         </Card>
@@ -446,14 +452,15 @@ function MiniMetric({ label, value, capitalize = false }: { label: string; value
 }
 
 function DurationCard({ label, run }: { label: string; run: StoredRun | null }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-border bg-background p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium">{label}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{run ? "Saved personal best" : "No result yet"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{run ? t("statsSavedPB") : t("statsNoResult")}</p>
         </div>
-        {run ? <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">PB</span> : null}
+        {run ? <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">{t("statsPB")}</span> : null}
       </div>
 
       {run ? (
@@ -461,34 +468,33 @@ function DurationCard({ label, run }: { label: string; run: StoredRun | null }) 
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="text-3xl font-semibold tracking-tight tabular-nums">{run.wpm}</p>
-              <p className="text-xs text-muted-foreground">WPM</p>
+              <p className="text-xs text-muted-foreground">{t("statsColWpm")}</p>
             </div>
             <p className="text-sm font-medium tabular-nums">{run.accuracy}%</p>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <MiniMetric label="Difficulty" value={run.difficulty} capitalize />
-            <MiniMetric label="Errors" value={run.errors} />
+            <MiniMetric label={t("statsColDifficulty")} value={run.difficulty} capitalize />
+            <MiniMetric label={t("statsColErrors")} value={run.errors} />
           </div>
           <p className="text-xs text-muted-foreground">{formatDate(run.at)}</p>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">Finish a run of this length to create a personal best snapshot.</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t("statsFinishRun")}</p>
       )}
     </div>
   );
 }
 
 function EmptyScopeState({ hasAnyRuns, onResetScope }: { hasAnyRuns: boolean; onResetScope: () => void }) {
+  const { t } = useTranslation();
   if (hasAnyRuns) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border px-4 py-10 text-center">
         <BarChart3 className="h-8 w-8 text-muted-foreground" />
-        <p className="text-base font-semibold">No runs in this range</p>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Your local stats exist, but this scope is empty. Switch back to all time or run a few fresh tests to populate it.
-        </p>
+        <p className="text-base font-semibold">{t("statsNoRunsRange")}</p>
+        <p className="max-w-md text-sm text-muted-foreground">{t("statsNoRunsRangeDesc")}</p>
         <Button variant="ghost" className="border bg-background/70" onClick={onResetScope}>
-          Show all time
+          {t("statsShowAllTime")}
         </Button>
       </div>
     );
@@ -497,16 +503,14 @@ function EmptyScopeState({ hasAnyRuns, onResetScope }: { hasAnyRuns: boolean; on
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border px-4 py-10 text-center">
       <BarChart3 className="h-8 w-8 text-muted-foreground" />
-      <p className="text-base font-semibold">No runs yet</p>
-      <p className="max-w-md text-sm text-muted-foreground">
-        Start a Lenuk Type run to unlock activity, pace trends, and a complete local stats dashboard.
-      </p>
+      <p className="text-base font-semibold">{t("statsNoRunsYet")}</p>
+      <p className="max-w-md text-sm text-muted-foreground">{t("statsNoRunsYetDesc")}</p>
       <Link
         href="/"
         className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to typing zone
+        {t("statsBtnBack")}
       </Link>
     </div>
   );

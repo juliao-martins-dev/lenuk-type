@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Activity, ArrowLeft, Crown, Medal, Search, Target, Trophy, User, X, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -113,19 +114,9 @@ function rowClasses(rank: number) {
   return "border-b border-border/60 odd:bg-background/20 even:bg-background/5 transition-colors hover:bg-primary/5";
 }
 
-function optionLabel(option: string) {
-  if (option === "all") return "All";
-  if (option === "leaderboard") return "Leaderboard";
-  if (option === "wpm") return "WPM";
-  if (option === "latest") return "Latest";
-  if (option === "accuracy") return "Accuracy";
-  return option.charAt(0).toUpperCase() + option.slice(1);
-}
+// optionLabel is built inside the component to access t()
 
-function playerLabel(item: LeaderboardItem) {
-  const name = item.userName?.trim();
-  return name ? name : "Anonymous";
-}
+// playerLabel is built inside the component to access t()
 
 function difficultyWeight(difficulty: string) {
   return DIFFICULTY_WEIGHTS[difficulty] ?? 1;
@@ -150,6 +141,24 @@ function compareByLeaderboardRank(a: LeaderboardItem, b: LeaderboardItem) {
 }
 
 export default function LeaderboardPage() {
+  const { t } = useTranslation();
+
+  const optionLabel = (option: string): string => {
+    const map: Record<string, string> = {
+      all:         t("lbSortAll"),
+      leaderboard: t("lbSortLeaderboard"),
+      wpm:         t("lbSortWpm"),
+      latest:      t("lbSortLatest"),
+      accuracy:    t("lbSortAccuracy"),
+    };
+    return map[option] ?? option.charAt(0).toUpperCase() + option.slice(1);
+  };
+
+  const playerLabel = (item: LeaderboardItem): string => {
+    const name = item.userName?.trim();
+    return name ? name : t("lbAnonymous");
+  };
+
   const [items, setItems] = useState<LeaderboardItem[]>([]);
   const [status, setStatus] = useState<LeaderboardStatus>("loading");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
@@ -272,7 +281,7 @@ export default function LeaderboardPage() {
   const podiumKey = `${query}|${difficultyFilter}|${sortBy}|${rankedItems.length}`;
   const now = Date.now();
 
-  const lastUpdatedLabel = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : "Waiting for first sync";
+  const lastUpdatedLabel = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : t("lbWaiting");
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-7xl px-4 py-8 md:py-10">
@@ -296,14 +305,12 @@ export default function LeaderboardPage() {
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
                   <Trophy className="h-3.5 w-3.5 text-primary" />
-                  Live Leaderboard
+                  {t("lbBadge")}
                 </div>
-                <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Fastest Typists This Session</h1>
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  Compare top runs instantly with smarter filters, spotlighted leaders, and a mobile-friendly ranking layout.
-                </p>
+                <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{t("lbTitle")}</h1>
+                <p className="max-w-2xl text-sm text-muted-foreground">{t("lbDesc")}</p>
                 <p className="text-xs text-muted-foreground/90">
-                  Melhor resultaadu sira aktualiza automatikamente kada {POLL_INTERVAL_MS / 1000} segundos.
+                  {t("lbAutoUpdate", { seconds: POLL_INTERVAL_MS / 1000 })}
                 </p>
               </div>
 
@@ -323,7 +330,7 @@ export default function LeaderboardPage() {
                           : "bg-muted-foreground"
                     }`}
                   />
-                  Status: {status}
+                  {status === "live" ? t("lbStatusLive") : status === "error" ? t("lbStatusError") : t("lbStatusLoading")}
                 </div>
 
                 <Link
@@ -342,20 +349,20 @@ export default function LeaderboardPage() {
                   />
                   <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
                   <ArrowLeft className="relative h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
-                  <span className="relative">Back to Typing Zone</span>
+                  <span className="relative">{t("lbBackBtn")}</span>
                   <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
-                    Go
+                    {t("lbGo")}
                   </span>
                 </Link>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <StatCard icon={<Activity className="h-4 w-4" />} label="Entries" value={stats.total} />
-              <StatCard icon={<Zap className="h-4 w-4" />} label="Top WPM" value={stats.topWpm} />
-              <StatCard icon={<Medal className="h-4 w-4" />} label="Avg WPM" value={stats.avgWpm} />
-              <StatCard icon={<Target className="h-4 w-4" />} label="Avg Accuracy" value={`${stats.avgAccuracy}%`} />
-              <StatCard icon={<Trophy className="h-4 w-4" />} label="Countries" value={stats.activeCountries} />
+              <StatCard icon={<Activity className="h-4 w-4" />} label={t("lbStatEntries")} value={stats.total} />
+              <StatCard icon={<Zap className="h-4 w-4" />} label={t("lbStatTopWpm")} value={stats.topWpm} />
+              <StatCard icon={<Medal className="h-4 w-4" />} label={t("lbStatAvgWpm")} value={stats.avgWpm} />
+              <StatCard icon={<Target className="h-4 w-4" />} label={t("lbStatAvgAcc")} value={`${stats.avgAccuracy}%`} />
+              <StatCard icon={<Trophy className="h-4 w-4" />} label={t("lbStatCountries")} value={stats.activeCountries} />
             </div>
 
             <div className="rounded-xl border border-border/70 bg-background/55 p-3 shadow-sm backdrop-blur">
@@ -366,23 +373,25 @@ export default function LeaderboardPage() {
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search player or country"
+                    placeholder={t("lbSearchPlaceholder")}
                     className="h-10 w-full rounded-lg border border-input/80 bg-background/80 pl-9 pr-3 text-sm outline-none transition focus-visible:border-primary/45 focus-visible:ring-2 focus-visible:ring-primary/20"
                   />
                 </label>
 
                 <SelectControl
-                  label="Difficulty"
+                  label={t("lbFilterDifficulty")}
                   value={difficultyFilter}
                   onChange={setDifficultyFilter}
                   options={difficultyOptions}
+                  formatOption={optionLabel}
                 />
 
                 <SelectControl
-                  label="Sort"
+                  label={t("lbFilterSort")}
                   value={sortBy}
                   onChange={(value) => setSortBy(value as SortOption)}
                   options={["leaderboard", "wpm", "accuracy", "latest"]}
+                  formatOption={optionLabel}
                 />
 
                 <button
@@ -396,16 +405,14 @@ export default function LeaderboardPage() {
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border/80 bg-background/70 px-3 text-sm font-medium transition hover:bg-background disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <X className="h-3.5 w-3.5" />
-                  Clear
+                  {t("lbBtnClear")}
                 </button>
               </div>
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                <p>
-                  Showing {rankedItems.length} of {items.length} entries
-                </p>
-                <p>Rank formula: WPM x accuracy x difficulty</p>
-                <p>Last sync: {lastUpdatedLabel}</p>
+                <p>{t("lbShowing", { shown: rankedItems.length, total: items.length })}</p>
+                <p>{t("lbRankFormula")}</p>
+                <p>{t("lbLastSync", { time: lastUpdatedLabel })}</p>
               </div>
             </div>
           </CardContent>
@@ -425,12 +432,12 @@ export default function LeaderboardPage() {
                         <span
                           className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rankPillClasses(rank)}`}
                         >
-                          Rank {rank}
+                          {t("lbRankLabel", { n: rank })}
                         </span>
                         <p className="text-lg font-semibold leading-tight">{playerName}</p>
                         <div className="inline-flex max-w-full items-center gap-2 text-xs text-muted-foreground">
                           {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
-                          <span className="truncate">{country || "Unknown country"}</span>
+                          <span className="truncate">{country || t("lbUnknownCountry")}</span>
                         </div>
                       </div>
 
@@ -440,9 +447,9 @@ export default function LeaderboardPage() {
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <PodiumMetric label="WPM" value={item.wpm} />
-                      <PodiumMetric label="Accuracy" value={`${item.accuracy}%`} />
-                      <PodiumMetric label="Score" value={score} />
+                      <PodiumMetric label={t("lbWpm")} value={item.wpm} />
+                      <PodiumMetric label={t("lbAccuracy")} value={`${item.accuracy}%`} />
+                      <PodiumMetric label={t("lbScore")} value={score} />
                     </div>
                   </CardContent>
                 </Card>
@@ -455,17 +462,17 @@ export default function LeaderboardPage() {
           <CardContent className="p-0">
             {status === "error" && items.length === 0 ? (
               <EmptyState
-                title="Leaderboard temporarily unavailable"
-                description="We could not load results right now. Please try again in a moment."
+                title={t("lbErrTitle")}
+                description={t("lbErrDesc")}
               />
             ) : items.length === 0 && status === "loading" ? (
               <LoadingState />
             ) : items.length === 0 ? (
-              <EmptyState title="No leaderboard results yet" description="Finish a typing run to create the first entry." />
+              <EmptyState title={t("lbEmptyTitle")} description={t("lbEmptyDesc")} />
             ) : rankedItems.length === 0 ? (
               <EmptyState
-                title="No runs match these filters"
-                description="Try another search term or clear the current filters."
+                title={t("lbNoMatchTitle")}
+                description={t("lbNoMatchDesc")}
                 action={
                   <button
                     type="button"
@@ -477,7 +484,7 @@ export default function LeaderboardPage() {
                     className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border/80 bg-background/70 px-3 text-sm font-medium transition hover:bg-background"
                   >
                     <X className="h-3.5 w-3.5" />
-                    Clear filters
+                    {t("lbBtnClearFilters")}
                   </button>
                 }
               />
@@ -507,7 +514,7 @@ export default function LeaderboardPage() {
                             </div>
                             <div className="inline-flex max-w-full items-center gap-2 text-xs text-muted-foreground">
                               {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
-                              <span className="truncate">{country || "Unknown country"}</span>
+                              <span className="truncate">{country || t("lbUnknownCountry")}</span>
                             </div>
                           </div>
                           <div className="text-right">
@@ -517,11 +524,11 @@ export default function LeaderboardPage() {
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                          <InlineMetric label="Score" value={score} />
-                          <InlineMetric label="Accuracy" value={`${item.accuracy}%`} />
-                          <InlineMetric label="Raw WPM" value={item.rawWpm} />
-                          <InlineMetric label="Errors" value={item.errors} />
-                          <InlineMetric label="Duration" value={`${item.durationSeconds}s`} />
+                          <InlineMetric label={t("lbScore")} value={score} />
+                          <InlineMetric label={t("lbAccuracy")} value={`${item.accuracy}%`} />
+                          <InlineMetric label={t("lbRawWpm")} value={item.rawWpm} />
+                          <InlineMetric label={t("lbErrors")} value={item.errors} />
+                          <InlineMetric label={t("lbDuration")} value={`${item.durationSeconds}s`} />
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -542,12 +549,12 @@ export default function LeaderboardPage() {
                     <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
                       <tr className="border-b">
                         <Th>#</Th>
-                        <Th>Player</Th>
-                        <Th>Country</Th>
-                        <Th align="right">Speed</Th>
-                        <Th align="right">Accuracy</Th>
-                        <Th>Setup</Th>
-                        <Th>Last run</Th>
+                        <Th>{t("lbColPlayer")}</Th>
+                        <Th>{t("lbColCountry")}</Th>
+                        <Th align="right">{t("lbColSpeed")}</Th>
+                        <Th align="right">{t("lbAccuracy")}</Th>
+                        <Th>{t("lbColSetup")}</Th>
+                        <Th>{t("lbColLastRun")}</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -601,14 +608,14 @@ export default function LeaderboardPage() {
                                 <div className="ml-auto h-1.5 w-24 overflow-hidden rounded-full bg-muted">
                                   <span className="block h-full rounded-full bg-primary/80" style={{ width: `${speedPercent}%` }} />
                                 </div>
-                                <p className="text-right text-[11px] text-muted-foreground">Raw {item.rawWpm} | Score {score}</p>
+                                <p className="text-right text-[11px] text-muted-foreground">{t("lbRawWpm")} {item.rawWpm} | {t("lbScore")} {score}</p>
                               </div>
                             </Td>
 
                             <Td align="right">
                               <div>
                                 <p className="tabular-nums font-semibold">{item.accuracy}%</p>
-                                <p className="text-[11px] text-muted-foreground">Errors {item.errors}</p>
+                                <p className="text-[11px] text-muted-foreground">{t("lbErrors")} {item.errors}</p>
                               </div>
                             </Td>
 
@@ -667,12 +674,14 @@ function SelectControl({
   label,
   value,
   options,
-  onChange
+  onChange,
+  formatOption,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
+  formatOption?: (option: string) => string;
 }) {
   return (
     <label className="space-y-1">
@@ -684,7 +693,7 @@ function SelectControl({
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {optionLabel(option)}
+            {formatOption ? formatOption(option) : option}
           </option>
         ))}
       </select>

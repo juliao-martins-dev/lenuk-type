@@ -1,8 +1,13 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, SearchX, Trophy } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
+  const { t } = useTranslation();
+
   return (
     <main
       aria-labelledby="not-found-title"
@@ -23,7 +28,7 @@ export default function NotFound() {
 
         <div className="relative mb-4 inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
           <SearchX className="h-3.5 w-3.5 text-primary" />
-          404 | Page not found
+          {t("notFoundBadge")}
         </div>
 
         <div className="relative mb-5 flex items-center gap-3">
@@ -39,28 +44,24 @@ export default function NotFound() {
           </div>
           <div>
             <p className="text-sm font-semibold">Lenuk Type</p>
-            <p className="text-xs text-muted-foreground">Typing test | English + Tetun</p>
+            <p className="text-xs text-muted-foreground">{t("notFoundAppSubtitle")}</p>
           </div>
         </div>
 
         <h1 id="not-found-title" className="relative text-3xl font-semibold tracking-tight md:text-4xl">
-          This page is not available
+          {t("notFoundTitle")}
         </h1>
 
         <p className="relative mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-          The page link may be incorrect or no longer exists. You can return to the home page and continue typing in one
-          click.
-        </p>
-        <p className="relative mt-2 text-xs text-muted-foreground/90 md:text-sm">
-          Pajina ne&apos;e la iha. Fila ba uma atu komesa teste tipu.
+          {t("notFoundDesc")}
         </p>
 
         <div className="relative mt-4 flex flex-wrap gap-2">
           <span className="inline-flex items-center rounded-full border bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
-            Check the URL spelling
+            {t("notFoundCheckUrl")}
           </span>
           <span className="inline-flex items-center rounded-full border bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
-            Return home to start a test
+            {t("notFoundReturnHome")}
           </span>
         </div>
 
@@ -70,14 +71,14 @@ export default function NotFound() {
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Home
+            {t("backToHome")}
           </Link>
           <Link
             href="/leaderboard"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-background/60 px-4 text-sm font-semibold text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Trophy className="h-4 w-4 text-primary" />
-            Leaderboard
+            {t("linkLeaderboard")}
           </Link>
         </div>
       </section>
