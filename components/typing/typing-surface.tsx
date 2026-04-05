@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, BarChart3, Keyboard, Pencil, Play, RotateCcw, Shuffle, SlidersHorizontal, Trophy, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { recordRunCompleted, recordRunStarted } from "@/lib/user-stats";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 const CelebrationOverlay = dynamic(() => import("./celebration-overlay").then((mod) => mod.CelebrationOverlay), {
   ssr: false
@@ -206,6 +208,7 @@ function getOrCreateContentSeed() {
 }
 
 export default function TypingSurface() {
+  const { t } = useTranslation();
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy");
   const [baseContentSeed, setBaseContentSeed] = useState(DEFAULT_SEED);
@@ -653,18 +656,16 @@ export default function TypingSurface() {
           >
             <CardContent className="space-y-4 p-6">
               <h2 id="profile-dialog-title" className="text-xl font-semibold">
-                {requiresOnboarding ? "Welcome to Lenuk Type" : "Edit Profile"}
+                {requiresOnboarding ? t("profileWelcomeTitle") : t("profileEditTitle")}
               </h2>
               <p id="profile-dialog-description" className="text-sm text-muted-foreground">
-                {requiresOnboarding
-                  ? "Enter your name and country once to start. Next visits will remember you."
-                  : "Update your display name and country for future leaderboard entries."}
+                {requiresOnboarding ? t("profileWelcomeDesc") : t("profileEditDesc")}
               </p>
               <input
                 ref={profileNameInputRef}
                 value={draftName}
                 onChange={(event) => setDraftName(event.target.value)}
-                placeholder="Your name"
+                placeholder={t("profileNamePlaceholder")}
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-ring focus:ring-2"
                 onKeyDown={(event) => {
                   if (event.key === "Enter") saveProfile();
@@ -674,7 +675,7 @@ export default function TypingSurface() {
               <div className="flex gap-2">
                 {!requiresOnboarding && (
                   <Button variant="ghost" className="w-full" onClick={closeProfileDialog}>
-                    Cancel
+                    {t("btnCancel")}
                   </Button>
                 )}
                 <Button
@@ -682,7 +683,7 @@ export default function TypingSurface() {
                   className="w-full"
                   disabled={!draftName.trim() || !isDraftCountryValid || countryOptions.length === 0}
                 >
-                  {requiresOnboarding ? "Save profile and start" : "Save profile"}
+                  {requiresOnboarding ? t("btnSaveAndStart") : t("btnSaveProfile")}
                 </Button>
               </div>
             </CardContent>
@@ -701,21 +702,20 @@ export default function TypingSurface() {
               <div className="relative space-y-3">
                 <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">
                   <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
-                  Timor-Leste typing practice
+                  {t("tagline")}
                 </div>
                 <div className="space-y-2">
                   <h1 id="home-title" className="text-2xl font-semibold tracking-tight md:text-4xl">
                     Lenuk Type
                   </h1>
                   <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-                    Free typing test in Tetun and English for Timor-Leste. If you are searching for Lenuk or Lenuk
-                    Timor, this is the official Lenuk Type typing web app.
+                    {t("heroDesc")}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="rounded-full border bg-background/60 px-2.5 py-1">Tetun + English prompts</span>
-                  <span className="rounded-full border bg-background/60 px-2.5 py-1">Fast browser typing test</span>
-                  <span className="rounded-full border bg-background/60 px-2.5 py-1">Leaderboard for Timor-Leste users</span>
+                  <span className="rounded-full border bg-background/60 px-2.5 py-1">{t("badgeTetunEnglish")}</span>
+                  <span className="rounded-full border bg-background/60 px-2.5 py-1">{t("badgeFastTest")}</span>
+                  <span className="rounded-full border bg-background/60 px-2.5 py-1">{t("badgeLeaderboard")}</span>
                 </div>
               </div>
             </section>
@@ -728,22 +728,22 @@ export default function TypingSurface() {
                     Lenuk Type
                   </div>
                   <span className="hidden rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground md:inline-flex">
-                    English + Tetun typing practice
+                    {t("badgeEnglishTetun")}
                   </span>
                   <span className="hidden rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground lg:inline-flex">
-                    Click prompt or start typing
+                    {t("hintClickToType")}
                   </span>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {onboardingComplete && (
-                    <Tooltip text="Edit profile">
+                    <Tooltip text={t("tooltipEditProfile")}>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 rounded-full border bg-background/50 p-0"
                         onClick={openProfileDialog}
-                        aria-label="Edit profile"
+                        aria-label={t("tooltipEditProfile")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -752,10 +752,10 @@ export default function TypingSurface() {
                   <div className="flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs backdrop-blur">
                     <User className="h-3.5 w-3.5 text-primary" />
                     {userCountry && <CountryFlag code={userCountry} />}
-                    <span>{userName || "Guest"}</span>
+                    <span>{userName || t("guest")}</span>
                   </div>
                   <span className="inline-flex items-center rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
-                    Text practice
+                    {t("badgeTextPractice")}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
                     <span
@@ -765,12 +765,12 @@ export default function TypingSurface() {
                       }`}
                     />
                     {!onboardingComplete
-                      ? "Complete profile"
+                      ? t("statusCompleteProfile")
                       : isSplashVisible
-                        ? "Preparing..."
+                        ? t("statusPreparing")
                         : isRunFinished
-                          ? "Finished"
-                          : "Ready"}
+                          ? t("statusFinished")
+                          : t("statusReady")}
                   </span>
                   {onboardingComplete && (
                     <Button
@@ -781,7 +781,7 @@ export default function TypingSurface() {
                       disabled={!typingEnabled || isRunFinished}
                     >
                       <Shuffle className="mr-1 h-3.5 w-3.5" />
-                      New prompt
+                      {t("btnNewPrompt")}
                     </Button>
                   )}
                   {onboardingComplete && (
@@ -793,7 +793,7 @@ export default function TypingSurface() {
                       disabled={!typingEnabled || isRunFinished}
                     >
                       <Keyboard className="mr-1 h-3.5 w-3.5" />
-                      Focus
+                      {t("btnFocus")}
                     </Button>
                   )}
                 </div>
@@ -804,10 +804,10 @@ export default function TypingSurface() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground">
                   <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-                  Test controls
+                  {t("testControls")}
                 </div>
                 <p className="hidden text-[11px] text-muted-foreground md:block">
-                  Set your test, then click the prompt or start typing. `Esc` restarts.
+                  {t("hintTestControls")}
                 </p>
               </div>
 
@@ -882,30 +882,30 @@ export default function TypingSurface() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                  <Tooltip text="Restart">
+                  <Tooltip text={t("btnRestart")}>
                     <Button variant="ghost" onClick={() => handleRestart()}>
                       <RotateCcw className="mr-1 h-4 w-4" />
-                      Restart
+                      {t("btnRestart")}
                     </Button>
                   </Tooltip>
-                  <Tooltip text="Next content">
+                  <Tooltip text={t("tooltipNextContent")}>
                     <Button variant="ghost" onClick={() => handleRestart({ regenerateText: true })}>
                       <ArrowRight className="mr-1 h-4 w-4" />
-                      Next
+                      {t("btnNext")}
                     </Button>
                   </Tooltip>
                   <Link
                     href="/stats"
                     className="inline-flex h-9 items-center gap-2 rounded-md border border-border/70 bg-background/70 px-3 text-sm font-semibold transition hover:border-primary/40 hover:text-primary"
-                    aria-label="Open user stats"
+                    aria-label={t("linkUserStats")}
                   >
                     <BarChart3 className="h-4 w-4" />
-                    User stats
+                    {t("linkUserStats")}
                   </Link>
                   <Link
                     href="/leaderboard"
                     className="leaderboard-live-button group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
-                    aria-label="Open leaderboard"
+                    aria-label={t("linkLeaderboard")}
                   >
                     <span aria-hidden className="leaderboard-live-aura absolute inset-0 rounded-md" />
                     <span
@@ -918,11 +918,12 @@ export default function TypingSurface() {
                     />
                     <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
                     <Trophy className="relative h-4 w-4 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
-                    <span className="relative">Leaderboard</span>
+                    <span className="relative">{t("linkLeaderboard")}</span>
                     <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
-                      Live
+                      {t("badgeLive")}
                     </span>
                   </Link>
+                  <LanguageSwitcher />
                   <ThemeToggle />
                 </div>
               </div>
@@ -967,26 +968,26 @@ export default function TypingSurface() {
                     isRunFinished ? "opacity-100" : "opacity-0"
                   }`}
                 />
-                <Tooltip text="Replay your typing">
+                <Tooltip text={t("tooltipReplay")}>
                   <Button variant="ghost" size="sm" onClick={handleReplay} disabled={!canReplayFinishedRun}>
                     <Play className="mr-1 h-4 w-4" />
-                    {isReplaying ? "Replaying..." : "Replay"}
+                    {isReplaying ? t("btnReplaying") : t("btnReplay")}
                   </Button>
                 </Tooltip>
-                <Tooltip text="Restart same content">
+                <Tooltip text={t("tooltipRestartSame")}>
                   <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
                     <RotateCcw className="mr-1 h-4 w-4" />
-                    Restart
+                    {t("btnRestart")}
                   </Button>
                 </Tooltip>
-                <Tooltip text="Next content">
+                <Tooltip text={t("tooltipNextContent")}>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRestart({ regenerateText: true })}
                   >
                     <ArrowRight className="mr-1 h-4 w-4" />
-                    Next
+                    {t("btnNext")}
                   </Button>
                 </Tooltip>
               </div>
@@ -1000,7 +1001,14 @@ export default function TypingSurface() {
               <TypingStats metrics={snapshot.metrics} />
 
               <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-                Save status: {saveStatus === "idle" ? "waiting for completed run" : saveStatus}
+                {t("saveStatusLabel")}{" "}
+                {saveStatus === "idle"
+                  ? t("saveWaiting")
+                  : saveStatus === "saving"
+                    ? t("saveSaving")
+                    : saveStatus === "saved"
+                      ? t("saveSaved")
+                      : t("saveError")}
               </p>
             </div>
 
@@ -1009,23 +1017,19 @@ export default function TypingSurface() {
                 <div className="space-y-3">
                   <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
                     <Keyboard className="h-3.5 w-3.5 text-primary" />
-                    Why Lenuk Type ranks for Timor-Leste searches
+                    {t("aboutBadge")}
                   </div>
                   <div className="space-y-2">
                     <h2 id="lenuk-about-title" className="text-xl font-semibold tracking-tight">
-                      Built for Lenuk, Lenuk Timor, and typing practice in Timor-Leste
+                      {t("aboutTitle")}
                     </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Lenuk Type is a browser-based typing speed test designed for students, job seekers, and everyday
-                      keyboard practice in Timor-Leste. The app focuses on Tetun and English content, instant play, and
-                      a clean leaderboard experience.
-                    </p>
+                    <p className="text-sm text-muted-foreground">{t("aboutDesc")}</p>
                   </div>
                   <ul className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                    <li className="rounded-xl border bg-background/50 px-3 py-2">Practice Tetun and English in one place.</li>
-                    <li className="rounded-xl border bg-background/50 px-3 py-2">Run timed typing tests directly in the browser.</li>
-                    <li className="rounded-xl border bg-background/50 px-3 py-2">Track speed, raw WPM, accuracy, and errors.</li>
-                    <li className="rounded-xl border bg-background/50 px-3 py-2">Compare results on the live leaderboard.</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">{t("feature1")}</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">{t("feature2")}</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">{t("feature3")}</li>
+                    <li className="rounded-xl border bg-background/50 px-3 py-2">{t("feature4")}</li>
                   </ul>
                 </div>
               </article>
@@ -1034,28 +1038,20 @@ export default function TypingSurface() {
                 <div className="space-y-3">
                   <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
                     <Trophy className="h-3.5 w-3.5 text-primary" />
-                    FAQ
+                    {t("faqBadge")}
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <h2 className="text-base font-semibold">Is Lenuk Type the same as Lenuk Timor?</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Yes. Some users search for Lenuk Timor when they want to find Lenuk Type, the typing web app
-                        focused on Timor-Leste.
-                      </p>
+                      <h2 className="text-base font-semibold">{t("faqQ1")}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{t("faqA1")}</p>
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold">What can I practice here?</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        You can practice typing speed, accuracy, and rhythm with Tetun and English text prompts.
-                      </p>
+                      <h2 className="text-base font-semibold">{t("faqQ2")}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{t("faqA2")}</p>
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold">Does Lenuk Type include rankings?</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Yes. Completed runs can appear on the live leaderboard so visitors can compare recent typing
-                        performance.
-                      </p>
+                      <h2 className="text-base font-semibold">{t("faqQ3")}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{t("faqA3")}</p>
                     </div>
                   </div>
                 </div>

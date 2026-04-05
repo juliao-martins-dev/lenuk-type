@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import type { EngineMetrics } from "@/lib/engine/typing-engine";
 
 interface TypingStatsProps {
@@ -7,13 +8,14 @@ interface TypingStatsProps {
 }
 
 export function TypingStats({ metrics }: TypingStatsProps) {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-      <Stat label="WPM" value={metrics.wpm} />
-      <Stat label="Raw" value={metrics.rawWpm} />
-      <Stat label="Accuracy" value={`${metrics.accuracy}%`} />
-      <Stat label="Errors" value={metrics.errors} />
-      <Stat label="Time" value={`${Math.ceil(metrics.timeLeft)}s`} />
+      <Stat label={t("statsWPM")} value={metrics.wpm} />
+      <Stat label={t("statsRaw")} value={metrics.rawWpm} />
+      <Stat label={t("statsAccuracy")} value={`${metrics.accuracy}%`} />
+      <Stat label={t("statsErrors")} value={metrics.errors} />
+      <Stat label={t("statsTime")} value={`${Math.ceil(metrics.timeLeft)}s`} />
     </div>
   );
 }
