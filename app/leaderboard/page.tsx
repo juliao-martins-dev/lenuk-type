@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { SiteCreditsFooter } from "@/components/ui/site-credits-footer";
 import { countryName } from "@/lib/countries";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 interface LeaderboardItem {
   id: string;
@@ -27,7 +28,8 @@ interface LeaderboardItem {
 type LeaderboardStatus = "loading" | "live" | "error";
 type SortOption = "leaderboard" | "wpm" | "accuracy" | "latest";
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 15_000;
+const REALTIME_TABLE = process.env.NEXT_PUBLIC_SUPABASE_RESULTS_TABLE || "lenuk_typing_users";
 const DIFFICULTY_WEIGHTS: Record<string, number> = {
   easy: 1,
   medium: 1.08,
@@ -276,6 +278,7 @@ export default function LeaderboardPage() {
   const [query, setQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("leaderboard");
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -325,11 +328,34 @@ export default function LeaderboardPage() {
 
     document.addEventListener("visibilitychange", onVisibilityChange);
 
+    // Supabase Realtime: trigger immediate reload on any INSERT into the results table
+    let supabaseChannel: ReturnType<ReturnType<typeof getSupabaseBrowserClient>["channel"]> | null = null;
+    try {
+      const supabase = getSupabaseBrowserClient();
+      supabaseChannel = supabase
+        .channel("leaderboard-realtime")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: REALTIME_TABLE }, () => {
+          void load();
+        })
+        .subscribe((channelStatus) => {
+          if (active) setRealtimeConnected(channelStatus === "SUBSCRIBED");
+        });
+    } catch {
+      // Supabase not configured — polling-only mode
+    }
+
     return () => {
       active = false;
       activeController?.abort();
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (supabaseChannel) {
+        try {
+          getSupabaseBrowserClient().removeChannel(supabaseChannel);
+        } catch {
+          // ignore
+        }
+      }
     };
   }, []);
 
@@ -420,8 +446,14 @@ export default function LeaderboardPage() {
                 </div>
                 <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{t("lbTitle")}</h1>
                 <p className="max-w-2xl text-sm text-muted-foreground">{t("lbDesc")}</p>
-                <p className="text-xs text-muted-foreground/90">
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground/90">
                   {t("lbAutoUpdate", { seconds: POLL_INTERVAL_MS / 1000 })}
+                  {realtimeConnected && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                      Realtime
+                    </span>
+                  )}
                 </p>
               </div>
 
