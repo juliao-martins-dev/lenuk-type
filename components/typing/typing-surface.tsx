@@ -2,16 +2,15 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, BarChart3, Keyboard, Pencil, Play, RotateCcw, Shuffle, SlidersHorizontal, Trophy, User } from "lucide-react";
+import { ArrowRight, BarChart3, Keyboard, Pencil, Play, RotateCcw, Shuffle, Trophy, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { CountryPicker } from "@/components/ui/country-picker";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
 import { SiteCreditsFooter } from "@/components/ui/site-credits-footer";
 import { TypingPrompt } from "@/components/typing/typing-prompt";
 import { TypingStats } from "@/components/typing/typing-stats";
@@ -19,7 +18,7 @@ import { BeginnerGuide } from "@/components/typing/beginner-guide";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { DEFAULT_SEED, STORAGE_KEYS } from "@/lib/config";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
-import { DurationSeconds, type EngineSnapshot } from "@/lib/engine/typing-engine";
+import { DurationSeconds, type EngineMetrics, type EngineSnapshot } from "@/lib/engine/typing-engine";
 import { recordRunCompleted, recordRunStarted } from "@/lib/user-stats";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
@@ -242,6 +241,9 @@ export default function TypingSurface() {
   const replayTimeoutsRef = useRef<number[]>([]);
   const profileNameInputRef = useRef<HTMLInputElement>(null);
   const shouldRestoreTypingFocusRef = useRef(false);
+  // Always holds the latest snapshot metrics without being a reactive dependency.
+  // Initialized to null; assigned on every render after snapshot is available (see below).
+  const latestMetricsRef = useRef<import("@/lib/engine/typing-engine").EngineMetrics | null>(null);
 
   useEffect(() => {
     setBaseContentSeed(getOrCreateContentSeed());
@@ -282,6 +284,9 @@ export default function TypingSurface() {
   const typingEnabled = onboardingComplete && !isProfileDialogOpen && !isSplashVisible;
   const { snapshot, restart, capture } = useTypingEngine(currentText, duration, typingEnabled);
   const isRunFinished = snapshot.metrics.finished;
+  // Keep ref in sync with the latest metrics on every render so effects can read
+  // the final values without listing snapshot.metrics as a reactive dependency.
+  latestMetricsRef.current = snapshot.metrics;
   const focusTypingInput = capture.focusInput;
   const blurTypingInput = capture.blurInput;
   const handleExternalKeyDown = capture.handleExternalKeyDown;
@@ -338,7 +343,7 @@ export default function TypingSurface() {
   }, [snapshot.metrics.started, typingEnabled, userCountry, userName]);
 
   useEffect(() => {
-    if (!snapshot.metrics.finished || submittedRef.current || !userName || !userCountry) return;
+    if (!isRunFinished || submittedRef.current || !userName || !userCountry) return;
 
     submittedRef.current = true;
     setSaveStatus("saving");
@@ -346,22 +351,28 @@ export default function TypingSurface() {
     if (celebrationTimeoutRef.current) window.clearTimeout(celebrationTimeoutRef.current);
     celebrationTimeoutRef.current = window.setTimeout(() => setShowCelebration(false), 2400);
 
-    const payload = {
-      userId: getOrCreateUserId(),
+    // Capture all metric values now (engine has stopped; latestMetricsRef holds the final state).
+    // The ref is always assigned during render before this effect fires, so null only on first mount.
+    if (!latestMetricsRef.current) return;
+    const metrics = latestMetricsRef.current;
+    const capturedUserId = getOrCreateUserId();
+
+    const apiPayload = {
+      userId: capturedUserId,
       player: userName,
       country: userCountry,
       mode: "text" as const,
       difficulty,
       durationSeconds: duration,
-      wpm: snapshot.metrics.wpm,
-      rawWpm: snapshot.metrics.rawWpm,
-      accuracy: snapshot.metrics.accuracy,
-      errors: snapshot.metrics.errors,
+      wpm: metrics.wpm,
+      rawWpm: metrics.rawWpm,
+      accuracy: metrics.accuracy,
+      errors: metrics.errors,
       promptId,
       metadata: {
-        correctChars: snapshot.metrics.correctChars,
-        typedChars: snapshot.metrics.typedChars,
-        elapsed: snapshot.metrics.elapsed,
+        correctChars: metrics.correctChars,
+        typedChars: metrics.typedChars,
+        elapsed: metrics.elapsed,
         languageCode: generatedTextContent.languageCode,
         contentSeed: generatedTextContent.seed,
         tokenCount: generatedTextContent.tokens.length,
@@ -369,35 +380,42 @@ export default function TypingSurface() {
       }
     };
 
-    recordRunCompleted({
+    const localPayload = {
       userName,
       country: userCountry,
       durationSeconds: duration,
       difficulty,
-      mode: "text",
-      wpm: snapshot.metrics.wpm,
-      rawWpm: snapshot.metrics.rawWpm,
-      accuracy: snapshot.metrics.accuracy,
-      errors: snapshot.metrics.errors,
+      mode: "text" as const,
+      wpm: metrics.wpm,
+      rawWpm: metrics.rawWpm,
+      accuracy: metrics.accuracy,
+      errors: metrics.errors,
       promptId,
       wordCount: textWordCount,
       languageCode: generatedTextContent.languageCode,
-      elapsedSeconds: snapshot.metrics.elapsed,
-      typedChars: snapshot.metrics.typedChars,
-      correctChars: snapshot.metrics.correctChars
-    });
+      elapsedSeconds: metrics.elapsed,
+      typedChars: metrics.typedChars,
+      correctChars: metrics.correctChars
+    };
 
-    fetch("/api/results", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to save result");
-        setSaveStatus("saved");
+    // Defer the synchronous localStorage write and network request to the next
+    // macrotask so the celebration UI renders before the main thread is blocked.
+    const saveTimerId = window.setTimeout(() => {
+      recordRunCompleted(localPayload);
+      fetch("/api/results", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(apiPayload)
       })
-      .catch(() => setSaveStatus("error"));
-  }, [difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, promptId, snapshot.metrics, textWordCount, userCountry, userName]);
+        .then((response) => {
+          if (!response.ok) throw new Error("Failed to save result");
+          setSaveStatus("saved");
+        })
+        .catch(() => setSaveStatus("error"));
+    }, 0);
+
+    return () => window.clearTimeout(saveTimerId);
+  }, [difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, isRunFinished, promptId, textWordCount, userCountry, userName]);
 
   useEffect(() => {
     return () => {
@@ -521,10 +539,10 @@ export default function TypingSurface() {
     };
   }, []);
 
-  const focusTypingSoon = () => {
+  const focusTypingSoon = useCallback(() => {
     if (!typingEnabled) return;
     window.requestAnimationFrame(() => focusTypingInput());
-  };
+  }, [typingEnabled, focusTypingInput]);
 
   const clearReplayTimeouts = () => {
     for (const timeoutId of replayTimeoutsRef.current) {
@@ -691,268 +709,250 @@ export default function TypingSurface() {
         </div>
       )}
 
-      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-start px-4 py-5 md:py-6">
-        <Card className="w-full border-0 bg-transparent shadow-none">
-          <CardContent className="space-y-3 p-0">
-            <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-background/35 p-4 shadow-sm backdrop-blur md:p-5" aria-labelledby="home-title">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,hsl(var(--primary)/0.16),transparent_34%),radial-gradient(circle_at_90%_8%,hsl(var(--primary)/0.08),transparent_26%)]"
-              />
-              <div className="relative space-y-3">
-                <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
-                  {t("tagline")}
-                </div>
-                <div className="space-y-2">
-                  <h1 id="home-title" className="text-2xl font-semibold tracking-tight md:text-4xl">
-                    Lenuk Type
-                  </h1>
-                  <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-                    {t("heroDesc")}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="rounded-full border bg-background/60 px-2.5 py-1">{t("badgeTetunEnglish")}</span>
-                  <span className="rounded-full border bg-background/60 px-2.5 py-1">{t("badgeFastTest")}</span>
-                  <span className="rounded-full border bg-background/60 px-2.5 py-1">{t("badgeLeaderboard")}</span>
-                </div>
+      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-start px-4 py-4 md:py-5">
+        <div className="w-full space-y-3">
+
+          {/* ── HUD HEADER ── */}
+          <header className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur md:px-4">
+            {/* Brand */}
+            <div className="flex shrink-0 items-center gap-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold tracking-tight">
+                <span aria-hidden className="h-2 w-2 rounded-full bg-primary motion-safe:animate-pulse" />
+                <span>Lenuk Type</span>
               </div>
-            </section>
+              <span className="hidden rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary md:inline-flex">
+                {t("tagline")}
+              </span>
+            </div>
 
-            <section className="rounded-xl border border-border/60 bg-background/20 p-2.5 shadow-sm backdrop-blur">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-sm font-semibold">
-                    <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
-                    Lenuk Type
-                  </div>
-                  <span className="hidden rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground md:inline-flex">
-                    {t("badgeEnglishTetun")}
-                  </span>
-                  <span className="hidden rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground lg:inline-flex">
-                    {t("hintClickToType")}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  {onboardingComplete && (
-                    <Tooltip text={t("tooltipEditProfile")}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 rounded-full border bg-background/50 p-0"
-                        onClick={openProfileDialog}
-                        aria-label={t("tooltipEditProfile")}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </Tooltip>
-                  )}
-                  <div className="flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-1 text-xs backdrop-blur">
-                    <User className="h-3.5 w-3.5 text-primary" />
-                    {userCountry && <CountryFlag code={userCountry} />}
-                    <span>{userName || t("guest")}</span>
-                  </div>
-                  <span className="inline-flex items-center rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
-                    {t("badgeTextPractice")}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
-                    <span
-                      aria-hidden
-                      className={`inline-flex h-1.5 w-1.5 rounded-full ${
-                        isRunFinished ? "bg-primary" : typingEnabled ? "bg-emerald-500 motion-safe:animate-pulse" : "bg-muted-foreground"
-                      }`}
-                    />
-                    {!onboardingComplete
-                      ? t("statusCompleteProfile")
-                      : isSplashVisible
-                        ? t("statusPreparing")
-                        : isRunFinished
-                          ? t("statusFinished")
-                          : t("statusReady")}
-                  </span>
-                  {onboardingComplete && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 rounded-full border bg-background/50 px-2.5 text-[11px]"
-                      onClick={shufflePrompt}
-                      disabled={!typingEnabled || isRunFinished}
-                    >
-                      <Shuffle className="mr-1 h-3.5 w-3.5" />
-                      {t("btnNewPrompt")}
-                    </Button>
-                  )}
-                  {onboardingComplete && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 rounded-full border bg-background/50 px-2.5 text-[11px]"
-                      onClick={focusTypingSoon}
-                      disabled={!typingEnabled || isRunFinished}
-                    >
-                      <Keyboard className="mr-1 h-3.5 w-3.5" />
-                      {t("btnFocus")}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-2 rounded-xl border border-border/60 bg-background/15 p-2.5 shadow-sm backdrop-blur" aria-label="Typing controls">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground">
-                  <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-                  {t("testControls")}
-                </div>
-                <p className="hidden text-[11px] text-muted-foreground md:block">
-                  {t("hintTestControls")}
-                </p>
-              </div>
-
-              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                <div className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-[linear-gradient(to_bottom,hsl(var(--background)/0.50),hsl(var(--background)/0.28))] p-2 shadow-sm shadow-black/[0.04] ring-1 ring-white/10 backdrop-blur dark:ring-white/5">
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,hsl(var(--primary)/0.10),transparent_34%),radial-gradient(circle_at_92%_14%,hsl(var(--primary)/0.06),transparent_26%)]"
-                  />
-                  <div
-                    className="no-scrollbar relative flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden"
-                    tabIndex={0}
-                    aria-label="Typing option controls"
+            {/* Center: profile + status + quick actions */}
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+              {onboardingComplete ? (
+                <Tooltip text={t("tooltipEditProfile")}>
+                  <button
+                    type="button"
+                    onClick={openProfileDialog}
+                    className="flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs font-medium transition hover:border-primary/40 hover:bg-background/90"
                   >
-                    <Select
-                      className="shrink-0 max-w-[170px]"
-                      value={typingLanguageCode}
-                      aria-label="Typing language"
-                      options={typingLanguageOptions}
-                      onChange={(event) => {
-                        const nextLanguageCode = event.target.value;
-                        if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
-                        resetRunUiState();
-                        localStorage.setItem(STORAGE_KEYS.typingLanguage, nextLanguageCode);
-                        setTypingLanguageCode(nextLanguageCode);
-                        focusTypingSoon();
-                      }}
-                    />
-                    <Select
-                      className="shrink-0 w-[88px]"
-                      value={String(textWordCount)}
-                      aria-label="Word count"
-                      options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
-                      onChange={(event) => {
-                        const nextWordCount = Number(event.target.value);
-                        if (!supportedTextWordCounts.has(nextWordCount)) return;
-                        resetRunUiState();
-                        localStorage.setItem(STORAGE_KEYS.typingWordCount, String(nextWordCount));
-                        setTextWordCount(nextWordCount);
-                        focusTypingSoon();
-                      }}
-                    />
-                    <Select
-                      className="shrink-0"
-                      value={difficulty}
-                      aria-label="Difficulty"
-                      options={difficultyOptions}
-                      onChange={(event) => {
-                        if (!isDifficultyLevel(event.target.value)) return;
-                        resetRunUiState();
-                        localStorage.setItem(STORAGE_KEYS.typingDifficulty, event.target.value);
-                        setDifficulty(event.target.value);
-                        restart(duration);
-                        focusTypingSoon();
-                      }}
-                    />
-                    <Select
-                      className="shrink-0"
-                      value={String(duration)}
-                      aria-label="Duration"
-                      options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
-                      onChange={(event) => {
-                        const next = Number(event.target.value) as DurationSeconds;
-                        resetRunUiState();
-                        localStorage.setItem(STORAGE_KEYS.typingDuration, String(next));
-                        setDuration(next);
-                        restart(next);
-                        focusTypingSoon();
-                      }}
-                    />
-                  </div>
-                </div>
+                    <User className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    {userCountry && <CountryFlag code={userCountry} />}
+                    <span className="max-w-[100px] truncate">{userName}</span>
+                    <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  </button>
+                </Tooltip>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openProfileDialog}
+                  className="flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20"
+                >
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  {t("statusCompleteProfile")}
+                </button>
+              )}
+              <span
+                className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                  isRunFinished
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : typingEnabled
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "border-border/50 bg-background/40 text-muted-foreground"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    isRunFinished ? "bg-primary" : typingEnabled ? "bg-emerald-500 motion-safe:animate-pulse" : "bg-muted-foreground"
+                  }`}
+                />
+                {isSplashVisible
+                  ? t("statusPreparing")
+                  : isRunFinished
+                    ? t("statusFinished")
+                    : t("statusReady")}
+              </span>
+              {onboardingComplete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden h-7 rounded-full border border-border/60 bg-background/50 px-2.5 text-[11px] sm:inline-flex"
+                  onClick={shufflePrompt}
+                  disabled={!typingEnabled || isRunFinished}
+                >
+                  <Shuffle className="mr-1 h-3 w-3" />
+                  {t("btnNewPrompt")}
+                </Button>
+              )}
+            </div>
 
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                  <Tooltip text={t("btnRestart")}>
-                    <Button variant="ghost" onClick={() => handleRestart()}>
-                      <RotateCcw className="mr-1 h-4 w-4" />
+            {/* Utility: language + theme */}
+            <div className="flex shrink-0 items-center gap-1">
+              <LanguageSwitcher />
+              <ThemeToggle />
+            </div>
+          </header>
+
+          {/* ── TEST SETUP PANEL ── */}
+          <section
+            className="rounded-xl border border-border/60 bg-background/20 p-2.5 backdrop-blur"
+            aria-label={t("testControls")}
+          >
+            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              {/* Dropdowns */}
+              <div className="relative overflow-hidden rounded-lg border border-border/70 bg-background/50 px-2 py-1.5 shadow-sm">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_50%,hsl(var(--primary)/0.09),transparent_38%)]"
+                />
+                <div
+                  className="no-scrollbar relative flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden"
+                  tabIndex={0}
+                  aria-label="Typing option controls"
+                >
+                  <Select
+                    className="shrink-0 max-w-[170px]"
+                    value={typingLanguageCode}
+                    aria-label="Typing language"
+                    options={typingLanguageOptions}
+                    onChange={(event) => {
+                      const nextLanguageCode = event.target.value;
+                      if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
+                      resetRunUiState();
+                      localStorage.setItem(STORAGE_KEYS.typingLanguage, nextLanguageCode);
+                      setTypingLanguageCode(nextLanguageCode);
+                      focusTypingSoon();
+                    }}
+                  />
+                  <Select
+                    className="shrink-0 w-[88px]"
+                    value={String(textWordCount)}
+                    aria-label="Word count"
+                    options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
+                    onChange={(event) => {
+                      const nextWordCount = Number(event.target.value);
+                      if (!supportedTextWordCounts.has(nextWordCount)) return;
+                      resetRunUiState();
+                      localStorage.setItem(STORAGE_KEYS.typingWordCount, String(nextWordCount));
+                      setTextWordCount(nextWordCount);
+                      focusTypingSoon();
+                    }}
+                  />
+                  <Select
+                    className="shrink-0"
+                    value={difficulty}
+                    aria-label="Difficulty"
+                    options={difficultyOptions}
+                    onChange={(event) => {
+                      if (!isDifficultyLevel(event.target.value)) return;
+                      resetRunUiState();
+                      localStorage.setItem(STORAGE_KEYS.typingDifficulty, event.target.value);
+                      setDifficulty(event.target.value);
+                      restart(duration);
+                      focusTypingSoon();
+                    }}
+                  />
+                  <Select
+                    className="shrink-0"
+                    value={String(duration)}
+                    aria-label="Duration"
+                    options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
+                    onChange={(event) => {
+                      const next = Number(event.target.value) as DurationSeconds;
+                      resetRunUiState();
+                      localStorage.setItem(STORAGE_KEYS.typingDuration, String(next));
+                      setDuration(next);
+                      restart(next);
+                      focusTypingSoon();
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                <div className="flex items-center gap-1">
+                  <Tooltip text={t("tooltipRestartSame")}>
+                    <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
+                      <RotateCcw className="mr-1 h-3.5 w-3.5" />
                       {t("btnRestart")}
                     </Button>
                   </Tooltip>
                   <Tooltip text={t("tooltipNextContent")}>
-                    <Button variant="ghost" onClick={() => handleRestart({ regenerateText: true })}>
-                      <ArrowRight className="mr-1 h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={() => handleRestart({ regenerateText: true })}>
+                      <ArrowRight className="mr-1 h-3.5 w-3.5" />
                       {t("btnNext")}
                     </Button>
                   </Tooltip>
-                  <Link
-                    href="/stats"
-                    className="inline-flex h-9 items-center gap-2 rounded-md border border-border/70 bg-background/70 px-3 text-sm font-semibold transition hover:border-primary/40 hover:text-primary"
-                    aria-label={t("linkUserStats")}
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    {t("linkUserStats")}
-                  </Link>
-                  <Link
-                    href="/leaderboard"
-                    className="leaderboard-live-button group relative inline-flex h-9 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
-                    aria-label={t("linkLeaderboard")}
-                  >
-                    <span aria-hidden className="leaderboard-live-aura absolute inset-0 rounded-md" />
-                    <span
-                      aria-hidden
-                      className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]"
-                    />
-                    <span
-                      aria-hidden
-                      className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-700 group-hover:translate-x-[290%] motion-safe:animate-[leaderboard-sheen_3.4s_ease-in-out_infinite]"
-                    />
-                    <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
-                    <Trophy className="relative h-4 w-4 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
-                    <span className="relative">{t("linkLeaderboard")}</span>
-                    <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
-                      {t("badgeLive")}
-                    </span>
-                  </Link>
-                  <LanguageSwitcher />
-                  <ThemeToggle />
                 </div>
+                <span aria-hidden className="hidden h-5 w-px bg-border/60 sm:block" />
+                <Link
+                  href="/stats"
+                  className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 bg-background/70 px-3 text-sm font-medium transition hover:border-primary/40 hover:text-primary"
+                  aria-label={t("linkUserStats")}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  {t("linkUserStats")}
+                </Link>
+                <Link
+                  href="/leaderboard"
+                  className="leaderboard-live-button group relative inline-flex h-8 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
+                  aria-label={t("linkLeaderboard")}
+                >
+                  <span aria-hidden className="leaderboard-live-aura absolute inset-0 rounded-md" />
+                  <span aria-hidden className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]" />
+                  <span aria-hidden className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-700 group-hover:translate-x-[290%] motion-safe:animate-[leaderboard-sheen_3.4s_ease-in-out_infinite]" />
+                  <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
+                  <Trophy className="relative h-4 w-4 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+                  <span className="relative">{t("linkLeaderboard")}</span>
+                  <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
+                    {t("badgeLive")}
+                  </span>
+                </Link>
               </div>
-            </section>
+            </div>
+          </section>
 
-            <div
-              className={`space-y-6 transition-[filter,opacity] duration-300 ${
-                isRunFinished && !isReplaying ? "pointer-events-none select-none blur-[3px] opacity-50 saturate-50" : ""
-              }`}
-              aria-hidden={isRunFinished && !isReplaying ? true : undefined}
-            >
-              <Progress value={promptProgress} className="h-2.5 bg-muted/70" />
-
-              <TypingPrompt
-                text={snapshot.text}
-                statuses={promptStatuses}
-                index={promptIndex}
-                strokeVersion={promptStrokeVersion}
-                capture={capture}
-                enabled={typingEnabled && !isReplaying}
-                finished={isRunFinished}
-              />
-
-              <BeginnerGuide
-                typingLanguageCode={typingLanguageCode}
-                onFocusPrompt={focusTypingSoon}
-                canFocusPrompt={typingEnabled && !isRunFinished}
+          {/* ── TYPING ARENA ── */}
+          <div
+            className={`typing-arena space-y-5 rounded-2xl border bg-card/80 p-4 backdrop-blur transition-[border-color,box-shadow] duration-300 md:p-6 ${
+              isRunFinished && !isReplaying
+                ? "pointer-events-none select-none border-border/40 opacity-40 saturate-50 blur-[3px]"
+                : typingEnabled && !isRunFinished
+                  ? "typing-arena-active border-primary/30"
+                  : "border-border/60"
+            }`}
+            aria-hidden={isRunFinished && !isReplaying ? true : undefined}
+          >
+            {/* Gaming progress bar — color shifts as test progresses */}
+            <div className="relative h-3 overflow-hidden rounded-full bg-muted/60">
+              <div
+                className={`h-full rounded-full transition-all duration-150 ${
+                  promptProgress < 34
+                    ? "bg-primary"
+                    : promptProgress < 67
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                }`}
+                style={{ width: `${promptProgress}%` }}
               />
             </div>
+
+            <TypingPrompt
+              text={snapshot.text}
+              statuses={promptStatuses}
+              index={promptIndex}
+              strokeVersion={promptStrokeVersion}
+              capture={capture}
+              enabled={typingEnabled && !isReplaying}
+              finished={isRunFinished}
+            />
+
+            <BeginnerGuide
+              typingLanguageCode={typingLanguageCode}
+              onFocusPrompt={focusTypingSoon}
+              canFocusPrompt={typingEnabled && !isRunFinished}
+            />
+          </div>
 
             <div className="min-h-[3.75rem] flex items-center justify-center">
               <div
@@ -1057,8 +1057,7 @@ export default function TypingSurface() {
                 </div>
               </article>
             </section>
-          </CardContent>
-        </Card>
+          </div>
         <SiteCreditsFooter className="mt-3" />
       </main>
     </>

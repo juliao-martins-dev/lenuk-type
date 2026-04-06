@@ -21,20 +21,20 @@
 }
 
 .dark {
-  --background: 222 47% 6%;
+  --background: 223 47% 5%;
   --foreground: 210 40% 96.1%;
-  --card: 224 43% 8%;
+  --card: 224 44% 7%;
   --card-foreground: 210 40% 98%;
   --primary: 204 100% 62%;
   --primary-foreground: 224 71% 4%;
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17%;
+  --muted: 217 33% 14%;
+  --muted-foreground: 215 20% 58%;
+  --accent: 217 33% 14%;
   --accent-foreground: 210 40% 96.1%;
   --destructive: 0 62% 35%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 18%;
-  --input: 217 33% 18%;
+  --border: 217 33% 15%;
+  --input: 217 33% 15%;
   --ring: 199 89% 48%;
 }
 
@@ -45,8 +45,17 @@
 body {
   @apply bg-background text-foreground antialiased;
   background-image:
-    radial-gradient(circle at 10% 10%, hsl(var(--primary) / 0.08), transparent 40%),
-    radial-gradient(circle at 90% 0%, hsl(var(--primary) / 0.05), transparent 35%);
+    radial-gradient(circle at 8% 8%, hsl(var(--primary) / 0.14), transparent 38%),
+    radial-gradient(circle at 92% 4%, hsl(var(--primary) / 0.09), transparent 32%),
+    radial-gradient(circle at 50% 96%, hsl(var(--primary) / 0.06), transparent 42%);
+}
+
+.dark body,
+.dark {
+  background-image:
+    radial-gradient(circle at 8% 8%, hsl(var(--primary) / 0.18), transparent 36%),
+    radial-gradient(circle at 92% 4%, hsl(var(--primary) / 0.10), transparent 30%),
+    radial-gradient(circle at 50% 96%, hsl(var(--primary) / 0.07), transparent 40%);
 }
 
 .no-scrollbar {
@@ -182,6 +191,22 @@ body {
   }
 }
 
+/* ── Typing Arena ── */
+.typing-arena-active {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.20),
+    0 4px 24px hsl(var(--primary) / 0.10),
+    0 1px 3px hsl(var(--primary) / 0.08);
+}
+
+.dark .typing-arena-active {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.28),
+    0 4px 32px hsl(var(--primary) / 0.16),
+    0 1px 3px hsl(var(--primary) / 0.10);
+}
+
+/* ── Leaderboard button ── */
 .leaderboard-live-button {
   isolation: isolate;
 }

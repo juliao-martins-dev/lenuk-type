@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import type { EngineMetrics } from "@/lib/engine/typing-engine";
 
@@ -7,7 +8,7 @@ interface TypingStatsProps {
   metrics: EngineMetrics;
 }
 
-export function TypingStats({ metrics }: TypingStatsProps) {
+function TypingStatsInner({ metrics }: TypingStatsProps) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -19,6 +20,16 @@ export function TypingStats({ metrics }: TypingStatsProps) {
     </div>
   );
 }
+
+// Only re-render when displayed values actually change.
+// timeLeft is shown as whole seconds, so ceil-compare avoids 10 re-renders/sec.
+export const TypingStats = memo(TypingStatsInner, (prev, next) => (
+  prev.metrics.wpm === next.metrics.wpm &&
+  prev.metrics.rawWpm === next.metrics.rawWpm &&
+  prev.metrics.accuracy === next.metrics.accuracy &&
+  prev.metrics.errors === next.metrics.errors &&
+  Math.ceil(prev.metrics.timeLeft) === Math.ceil(next.metrics.timeLeft)
+));
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
