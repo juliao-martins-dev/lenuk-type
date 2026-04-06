@@ -98,16 +98,123 @@ function rankPillClasses(rank: number) {
   return "border-border/80 bg-background/70 text-muted-foreground";
 }
 
-function podiumCardClasses(rank: number) {
-  if (rank === 1) {
-    return "border-yellow-500/30 bg-[linear-gradient(135deg,hsl(47_96%_53%/.16),transparent_56%),linear-gradient(180deg,hsl(var(--card)/.97),hsl(var(--card)/.95))]";
-  }
+const PODIUM_CONFIG: Record<number, {
+  platformHeight: string;
+  platformBg: string;
+  platformBorder: string;
+  platformShadow: string;
+  rankNumColor: string;
+  iconBg: string;
+  iconColor: string;
+  cardGlow: string;
+}> = {
+  1: {
+    platformHeight: "h-24",
+    platformBg: "bg-gradient-to-b from-yellow-400 to-yellow-600",
+    platformBorder: "border-yellow-400/60",
+    platformShadow: "shadow-yellow-500/40",
+    rankNumColor: "text-yellow-900/80",
+    iconBg: "bg-yellow-400/20 border-yellow-400/50",
+    iconColor: "text-yellow-400",
+    cardGlow: "shadow-yellow-500/10",
+  },
+  2: {
+    platformHeight: "h-16",
+    platformBg: "bg-gradient-to-b from-slate-300 to-slate-500",
+    platformBorder: "border-slate-400/60",
+    platformShadow: "shadow-slate-400/30",
+    rankNumColor: "text-slate-900/80",
+    iconBg: "bg-slate-400/20 border-slate-400/50",
+    iconColor: "text-slate-400",
+    cardGlow: "shadow-slate-400/10",
+  },
+  3: {
+    platformHeight: "h-12",
+    platformBg: "bg-gradient-to-b from-orange-500 to-orange-700",
+    platformBorder: "border-orange-500/60",
+    platformShadow: "shadow-orange-500/30",
+    rankNumColor: "text-orange-900/80",
+    iconBg: "bg-orange-500/20 border-orange-500/50",
+    iconColor: "text-orange-400",
+    cardGlow: "shadow-orange-500/10",
+  },
+};
 
-  if (rank === 2) {
-    return "border-slate-400/30 bg-[linear-gradient(135deg,hsl(215_14%_67%/.2),transparent_56%),linear-gradient(180deg,hsl(var(--card)/.97),hsl(var(--card)/.95))]";
-  }
+function PodiumStage({
+  podiumItems,
+  playerLabel,
+  t,
+}: {
+  podiumItems: Array<{ item: LeaderboardItem; rank: number; score: number }>;
+  playerLabel: (item: LeaderboardItem) => string;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}) {
+  const displayOrder =
+    podiumItems.length >= 3
+      ? [podiumItems[1], podiumItems[0], podiumItems[2]]
+      : podiumItems.length === 2
+        ? [podiumItems[1], podiumItems[0]]
+        : podiumItems;
 
-  return "border-amber-700/30 bg-[linear-gradient(135deg,hsl(32_95%_44%/.15),transparent_56%),linear-gradient(180deg,hsl(var(--card)/.97),hsl(var(--card)/.95))]";
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60 shadow-xl backdrop-blur-sm">
+      <div className="flex items-end justify-center gap-0 px-4 pt-8">
+        {displayOrder.map(({ item, rank, score }) => {
+          const cfg = PODIUM_CONFIG[rank] ?? PODIUM_CONFIG[3];
+          const name = playerLabel(item);
+          const country = item.country ? countryName(item.country) : "";
+          const isFirst = rank === 1;
+
+          return (
+            <div
+              key={`podium-${item.id}-${rank}`}
+              className={`flex flex-col items-center ${isFirst ? "w-[36%]" : "w-[32%]"}`}
+            >
+              <div className={`mb-3 flex w-full flex-col items-center gap-2 rounded-2xl border border-border/60 bg-background/70 px-3 py-4 text-center shadow-lg backdrop-blur ${cfg.cardGlow}`}>
+                <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border ${cfg.iconBg}`}>
+                  {rank === 1
+                    ? <Crown className={`h-4 w-4 ${cfg.iconColor}`} />
+                    : <Medal className={`h-4 w-4 ${cfg.iconColor}`} />}
+                </span>
+
+                <div className={`flex h-12 w-12 items-center justify-center rounded-full border-2 bg-muted ${cfg.platformBorder}`}>
+                  <User className="h-6 w-6 text-muted-foreground" />
+                </div>
+
+                <p className={`w-full truncate font-semibold leading-tight ${isFirst ? "text-base" : "text-sm"}`}>
+                  {name}
+                </p>
+
+                {(item.country || country) ? (
+                  <div className="flex max-w-full items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
+                    <span className="truncate">{country || t("lbUnknownCountry")}</span>
+                  </div>
+                ) : null}
+
+                <div className="flex w-full flex-col gap-1.5">
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className={`font-bold tabular-nums ${isFirst ? "text-2xl" : "text-xl"}`}>{item.wpm}</span>
+                    <span className="text-xs text-muted-foreground">{t("lbWpm")}</span>
+                  </div>
+                  <div className="flex justify-center gap-2 text-xs text-muted-foreground">
+                    <span>{item.accuracy}% {t("lbAccuracy")}</span>
+                    <span className="text-border">·</span>
+                    <span>{t("lbScore")} {score}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`relative flex w-full items-center justify-center rounded-t-xl border border-b-0 shadow-lg ${cfg.platformHeight} ${cfg.platformBg} ${cfg.platformBorder} ${cfg.platformShadow}`}>
+                <span className={`text-3xl font-black ${cfg.rankNumColor}`}>{rank}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-3 bg-border/25" />
+    </div>
+  );
 }
 
 function rowClasses(rank: number) {
@@ -423,43 +530,7 @@ export default function LeaderboardPage() {
         </Card>
 
         {podiumItems.length > 0 ? (
-          <div key={podiumKey} className="grid gap-3 md:grid-cols-3">
-            {podiumItems.map(({ item, rank, score }) => {
-              const playerName = playerLabel(item);
-              const country = item.country ? countryName(item.country) : "";
-
-              return (
-                <Card key={`podium-${item.id}-${rank}`} className={`relative overflow-hidden shadow-lg ${podiumCardClasses(rank)}`}>
-                  <CardContent className="relative space-y-3 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${rankPillClasses(rank)}`}
-                        >
-                          {t("lbRankLabel", { n: rank })}
-                        </span>
-                        <p className="text-lg font-semibold leading-tight">{playerName}</p>
-                        <div className="inline-flex max-w-full items-center gap-2 text-xs text-muted-foreground">
-                          {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
-                          <span className="truncate">{country || t("lbUnknownCountry")}</span>
-                        </div>
-                      </div>
-
-                      <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border ${rankPillClasses(rank)}`}>
-                        {rank === 1 ? <Crown className="h-4 w-4" /> : <Medal className="h-4 w-4" />}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <PodiumMetric label={t("lbWpm")} value={item.wpm} />
-                      <PodiumMetric label={t("lbAccuracy")} value={`${item.accuracy}%`} />
-                      <PodiumMetric label={t("lbScore")} value={score} />
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <PodiumStage key={podiumKey} podiumItems={podiumItems} playerLabel={playerLabel} t={t} />
         ) : null}
 
         <Card className="border border-border/80 bg-card/80 shadow-xl shadow-black/5 backdrop-blur">
@@ -702,15 +773,6 @@ function SelectControl({
         ))}
       </select>
     </label>
-  );
-}
-
-function PodiumMetric({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border/70 bg-background/45 px-2 py-1.5">
-      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-      <p className="mt-0.5 font-semibold tabular-nums">{value}</p>
-    </div>
   );
 }
 
