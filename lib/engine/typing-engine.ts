@@ -104,6 +104,12 @@ export interface EngineMetrics {
   streak: number;
   /** Highest streak reached in this run. */
   bestStreak: number;
+  /**
+   * Per-second instantaneous WPM samples taken throughout the run.
+   * One sample is appended at most once per elapsed second.
+   * Array reference changes only when a new sample is added (≤ 1 Hz).
+   */
+  wpmSamples: readonly number[];
 }
 
 export interface EngineSnapshot {
@@ -149,6 +155,12 @@ export class TypingEngine {
   private streak = 0;
   /** Peak streak reached in this run. */
   private bestStreak = 0;
+  /** Per-second instantaneous WPM samples. New array ref on each append (≤ 1 Hz). */
+  private wpmSamples: readonly number[] = [];
+  /** Last elapsed second at which a WPM sample was taken (-1 = none yet). */
+  private lastSampledSecond = -1;
+  /** correctChars value at the last sample boundary — used for delta WPM. */
+  private lastSampledCorrectChars = 0;
   /**
    * Absolute performance.now() timestamp from the first character's keydown
    * event — captured before React processing for maximum accuracy.
@@ -222,6 +234,9 @@ export class TypingEngine {
     this.startedAt = 0;
     this.streak = 0;
     this.bestStreak = 0;
+    this.wpmSamples = [];
+    this.lastSampledSecond = -1;
+    this.lastSampledCorrectChars = 0;
     this.accumulator = 0;
     this.lastFrameTime = 0;
     this.tickIndex = 0;
@@ -301,6 +316,24 @@ export class TypingEngine {
   private update(_fixedDelta: number): void {
     this.processInputs();
     if (!this.finished) this.checkTimer();
+    if (!this.finished) this.sampleWpm();
+  }
+
+  /**
+   * Append a per-second instantaneous WPM sample.
+   * Called once per tick; samples at most once per elapsed second.
+   * Uses delta correct-chars so each sample reflects only that second's pace.
+   */
+  private sampleWpm(): void {
+    if (!this.started) return;
+    const elapsedSec = Math.floor((nowMs() - this.startedAt) / 1000);
+    if (elapsedSec <= this.lastSampledSecond) return;
+    // Instantaneous WPM = correct chars typed in the last second × 12
+    // (60 seconds/min ÷ 5 chars/word = 12)
+    const deltaChars = this.correctChars - this.lastSampledCorrectChars;
+    this.lastSampledSecond = elapsedSec;
+    this.lastSampledCorrectChars = this.correctChars;
+    this.wpmSamples = [...this.wpmSamples, deltaChars * 12];
   }
 
   /**
@@ -399,6 +432,13 @@ export class TypingEngine {
   }
 
   private endRun(): void {
+    // Capture any chars typed since the last sample boundary.
+    if (this.started) {
+      const deltaChars = this.correctChars - this.lastSampledCorrectChars;
+      if (deltaChars > 0) {
+        this.wpmSamples = [...this.wpmSamples, deltaChars * 12];
+      }
+    }
     this.finished = true;
     this.stopLoop();
     this.cachedSnapshot = this.buildSnapshot();
@@ -537,6 +577,7 @@ export class TypingEngine {
         finished: this.finished,
         streak: this.streak,
         bestStreak: this.bestStreak,
+        wpmSamples: this.wpmSamples,
       },
     };
   }

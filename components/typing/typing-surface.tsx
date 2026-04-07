@@ -21,6 +21,7 @@ import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@
 import { DurationSeconds, type EngineMetrics, type EngineSnapshot } from "@/lib/engine/typing-engine";
 import { readUserStats, recordRunCompleted, recordRunStarted, type KeystrokeEntry } from "@/lib/user-stats";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
+import { useSwipeToRestart } from "@/hooks/use-swipe-to-restart";
 import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
@@ -226,6 +227,7 @@ export default function TypingSurface() {
   const [isFrontendBootReady, setIsFrontendBootReady] = useState(false);
   const [completedReplayRun, setCompletedReplayRun] = useState<ReplayRun | null>(null);
   const [replayView, setReplayView] = useState<ReplayViewState | null>(null);
+  const swipeArenaRef = useRef<HTMLDivElement>(null);
   const submittedRef = useRef(false);
   const runStartedRef = useRef(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
@@ -649,6 +651,12 @@ export default function TypingSurface() {
     focusTypingSoon();
   };
 
+  // Placed after handleRestart so the closure captures its final definition.
+  const swipeState = useSwipeToRestart(swipeArenaRef, {
+    enabled: !showProfileDialog && !isSplashVisible && !isReplaying,
+    onRestart: () => handleRestart(),
+  });
+
   const shufflePrompt = () => {
     resetRunUiState();
     regenerateTextContent(`shuffle:${crypto.randomUUID()}`);
@@ -976,7 +984,8 @@ export default function TypingSurface() {
 
           {/* ── TYPING ARENA ── */}
           <div
-            className={`typing-arena space-y-5 rounded-2xl border bg-card/80 p-4 backdrop-blur transition-[border-color,box-shadow] duration-300 md:p-6 ${
+            ref={swipeArenaRef}
+            className={`typing-arena relative overflow-hidden rounded-2xl border bg-card/80 p-4 backdrop-blur transition-[border-color,box-shadow] duration-300 md:p-6 ${
               isRunFinished && !isReplaying
                 ? "pointer-events-none select-none border-border/40 opacity-40 saturate-50 blur-[3px]"
                 : typingEnabled && !isRunFinished
@@ -985,37 +994,62 @@ export default function TypingSurface() {
             }`}
             aria-hidden={isRunFinished && !isReplaying ? true : undefined}
           >
-            {/* Gaming progress bar — color shifts as test progresses */}
-            <div className="relative h-3 overflow-hidden rounded-full bg-muted/60">
+            {/* Swipe-to-restart indicator — visible only during an active swipe gesture */}
+            {swipeState.direction !== null && (
               <div
-                className={`h-full rounded-full transition-all duration-150 ${
-                  promptProgress < 34
-                    ? "bg-primary"
-                    : promptProgress < 67
-                      ? "bg-amber-500"
-                      : "bg-rose-500"
-                }`}
-                style={{ width: `${promptProgress}%` }}
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-center py-2"
+                style={{ opacity: Math.min(swipeState.progress * 1.6, 1) }}
+              >
+                <span className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary backdrop-blur">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {swipeState.progress >= 1 ? t("swipeRelease") : t("swipeHint")}
+                </span>
+              </div>
+            )}
+
+            {/* Slideable content — shifts with the swipe gesture for tactile feedback */}
+            <div
+              className="space-y-5"
+              style={{
+                transform: swipeState.direction
+                  ? `translateX(${(swipeState.direction === "right" ? 1 : -1) * swipeState.progress * 22}px)`
+                  : undefined,
+                transition: swipeState.direction ? undefined : "transform 0.25s ease-out",
+              }}
+            >
+              {/* Gaming progress bar — color shifts as test progresses */}
+              <div className="relative h-3 overflow-hidden rounded-full bg-muted/60">
+                <div
+                  className={`h-full rounded-full transition-all duration-150 ${
+                    promptProgress < 34
+                      ? "bg-primary"
+                      : promptProgress < 67
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                  }`}
+                  style={{ width: `${promptProgress}%` }}
+                />
+              </div>
+
+              <TypingPrompt
+                text={snapshot.text}
+                statuses={promptStatuses}
+                index={promptIndex}
+                strokeVersion={promptStrokeVersion}
+                capture={capture}
+                enabled={typingEnabled && !isReplaying}
+                finished={isRunFinished}
+                ghostIndex={ghostIndex}
+                ghostWpm={ghostWpm}
+              />
+
+              <BeginnerGuide
+                typingLanguageCode={typingLanguageCode}
+                onFocusPrompt={focusTypingSoon}
+                canFocusPrompt={typingEnabled && !isRunFinished}
               />
             </div>
-
-            <TypingPrompt
-              text={snapshot.text}
-              statuses={promptStatuses}
-              index={promptIndex}
-              strokeVersion={promptStrokeVersion}
-              capture={capture}
-              enabled={typingEnabled && !isReplaying}
-              finished={isRunFinished}
-              ghostIndex={ghostIndex}
-              ghostWpm={ghostWpm}
-            />
-
-            <BeginnerGuide
-              typingLanguageCode={typingLanguageCode}
-              onFocusPrompt={focusTypingSoon}
-              canFocusPrompt={typingEnabled && !isRunFinished}
-            />
           </div>
 
             <div className="min-h-[3.75rem] flex items-center justify-center">
