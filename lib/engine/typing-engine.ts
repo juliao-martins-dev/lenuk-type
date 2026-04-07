@@ -404,6 +404,21 @@ export class TypingEngine {
 
   private ensureLoopRunning(): void {
     if (this.rafHandle !== null || this.finished) return;
+
+    // Non-browser environments (Node.js, Vitest, SSR) do not have
+    // requestAnimationFrame. Fall back to synchronous queue draining so
+    // handleKey() / handleBackspace() remain usable in tests and on the
+    // server without mocking. The rAF timer loop is simply skipped.
+    if (typeof requestAnimationFrame === "undefined") {
+      this.tickIndex += 1;
+      this.update(TICK_DURATION_MS);
+      if (!this.finished) {
+        this.cachedSnapshot = this.buildSnapshot();
+        this.notify();
+      }
+      return;
+    }
+
     this.lastFrameTime = nowMs();
     this.rafHandle = requestAnimationFrame(this.rafTick);
   }

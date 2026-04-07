@@ -73,9 +73,9 @@ export function useTypingEngine(
    *   1. onCaptureKeyDown (React synthetic event on the hidden <input>)
    *   2. handleExternalKeyDown (native window keydown, for when input is unfocused)
    *
-   * The engine processes the key synchronously so the snapshot update and
-   * the subsequent React re-render happen within the same microtask batch —
-   * zero frame delay between keystroke and visual feedback.
+   * The keystroke is enqueued immediately (O(1), no game-state mutation).
+   * The engine's fixed-timestep loop processes it on the next rAF tick
+   * (~16 ms at 60 fps) — below the human perception threshold of ~50 ms.
    */
   const handleKeyInput = useCallback(
     (event: TypingKeyInput) => {
