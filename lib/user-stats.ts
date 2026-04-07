@@ -36,6 +36,8 @@ export type StoredRun = {
   keystrokeLog?: KeystrokeEntry[];
   /** The prompt text typed during this run, stored alongside the keystroke log. */
   promptText?: string;
+  /** Highest consecutive-correct-keystrokes streak in this run. */
+  bestStreak?: number;
 };
 
 export type UserStats = {

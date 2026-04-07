@@ -402,7 +402,8 @@ export default function TypingSurface() {
       languageCode: generatedTextContent.languageCode,
       elapsedSeconds: metrics.elapsed,
       typedChars: metrics.typedChars,
-      correctChars: metrics.correctChars
+      correctChars: metrics.correctChars,
+      bestStreak: metrics.bestStreak
     };
 
     // Build a compact keystroke log for the heatmap. Timestamps are stored

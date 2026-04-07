@@ -100,6 +100,10 @@ export interface EngineMetrics {
   progress: number;
   started: boolean;
   finished: boolean;
+  /** Current consecutive-correct-keystrokes streak. Resets on any error or Backspace. */
+  streak: number;
+  /** Highest streak reached in this run. */
+  bestStreak: number;
 }
 
 export interface EngineSnapshot {
@@ -141,6 +145,10 @@ export class TypingEngine {
   private typedChars = 0;
   private started = false;
   private finished = false;
+  /** Consecutive correct keystrokes without an error or Backspace. */
+  private streak = 0;
+  /** Peak streak reached in this run. */
+  private bestStreak = 0;
   /**
    * Absolute performance.now() timestamp from the first character's keydown
    * event — captured before React processing for maximum accuracy.
@@ -212,6 +220,8 @@ export class TypingEngine {
     this.started = false;
     this.finished = false;
     this.startedAt = 0;
+    this.streak = 0;
+    this.bestStreak = 0;
     this.accumulator = 0;
     this.lastFrameTime = 0;
     this.tickIndex = 0;
@@ -334,8 +344,14 @@ export class TypingEngine {
     this.statuses[this.index] = isCorrect ? 1 : -1;
     this.index += 1;
     this.typedChars += 1;
-    if (isCorrect) this.correctChars += 1;
-    else this.errors += 1;
+    if (isCorrect) {
+      this.correctChars += 1;
+      this.streak += 1;
+      if (this.streak > this.bestStreak) this.bestStreak = this.streak;
+    } else {
+      this.errors += 1;
+      this.streak = 0;
+    }
 
     this.inputQueue.record({
       key: raw.key,
@@ -361,6 +377,7 @@ export class TypingEngine {
     if (prev !== 0) this.typedChars -= 1;
     this.statuses[this.index - 1] = 0;
     this.index -= 1;
+    this.streak = 0;
     this.inputQueue.record({
       key: "Backspace",
       timestampMs: raw.timestampMs,
@@ -518,6 +535,8 @@ export class TypingEngine {
           this.text.length === 0 ? 0 : (this.index / this.text.length) * 100,
         started: this.started,
         finished: this.finished,
+        streak: this.streak,
+        bestStreak: this.bestStreak,
       },
     };
   }
