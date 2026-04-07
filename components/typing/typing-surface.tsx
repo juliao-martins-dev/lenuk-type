@@ -19,7 +19,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { DEFAULT_SEED, STORAGE_KEYS } from "@/lib/config";
 import { getCountryOptions, isSupportedCountryCode, type CountryOption } from "@/lib/countries";
 import { DurationSeconds, type EngineMetrics, type EngineSnapshot } from "@/lib/engine/typing-engine";
-import { recordRunCompleted, recordRunStarted } from "@/lib/user-stats";
+import { readUserStats, recordRunCompleted, recordRunStarted, type KeystrokeEntry } from "@/lib/user-stats";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
@@ -243,7 +243,11 @@ export default function TypingSurface() {
   const shouldRestoreTypingFocusRef = useRef(false);
   // Always holds the latest snapshot metrics without being a reactive dependency.
   // Initialized to null; assigned on every render after snapshot is available (see below).
-  const latestMetricsRef = useRef<import("@/lib/engine/typing-engine").EngineMetrics | null>(null);
+  const latestMetricsRef = useRef<EngineMetrics | null>(null);
+
+  // Ghost replay cursor — loaded from the PB run for the current duration.
+  const [ghostLog, setGhostLog] = useState<KeystrokeEntry[] | null>(null);
+  const [ghostWpm, setGhostWpm] = useState<number | null>(null);
 
   useEffect(() => {
     setBaseContentSeed(getOrCreateContentSeed());
@@ -282,7 +286,10 @@ export default function TypingSurface() {
   const showProfileDialog = requiresOnboarding || isProfileDialogOpen;
   const isDraftCountryValid = showProfileDialog ? isSupportedCountryCode(draftCountry) : true;
   const typingEnabled = onboardingComplete && !isProfileDialogOpen && !isSplashVisible;
-  const { snapshot, restart, capture } = useTypingEngine(currentText, duration, typingEnabled);
+  const { snapshot, restart, capture, getInputLog } = useTypingEngine(currentText, duration, typingEnabled);
+  // Stable ref so the save effect can read the log without it being a reactive dep.
+  const getInputLogRef = useRef(getInputLog);
+  getInputLogRef.current = getInputLog;
   const isRunFinished = snapshot.metrics.finished;
   // Keep ref in sync with the latest metrics on every render so effects can read
   // the final values without listing snapshot.metrics as a reactive dependency.
@@ -398,10 +405,20 @@ export default function TypingSurface() {
       correctChars: metrics.correctChars
     };
 
+    // Build a compact keystroke log for the heatmap. Timestamps are stored
+    // relative to the first keystroke so they are portable and compact.
+    const rawLog = getInputLogRef.current();
+    const firstTs = rawLog.length > 0 ? rawLog[0].timestampMs : 0;
+    const keystrokeLog = rawLog.map((e) => ({
+      t: Math.round(e.timestampMs - firstTs),
+      c: e.correct,
+      i: e.charIndex,
+    }));
+
     // Defer the synchronous localStorage write and network request to the next
     // macrotask so the celebration UI renders before the main thread is blocked.
     const saveTimerId = window.setTimeout(() => {
-      recordRunCompleted(localPayload);
+      recordRunCompleted({ ...localPayload, keystrokeLog, promptText: currentText });
       fetch("/api/results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -538,6 +555,50 @@ export default function TypingSurface() {
       replayTimeoutsRef.current = [];
     };
   }, []);
+
+  // Load / refresh ghost log whenever duration changes.
+  useEffect(() => {
+    const stats = readUserStats();
+    const pb = stats?.bestByDuration[duration] ?? null;
+    if (pb?.keystrokeLog && pb.keystrokeLog.length > 0) {
+      setGhostLog(pb.keystrokeLog);
+      setGhostWpm(pb.wpm);
+    } else {
+      setGhostLog(null);
+      setGhostWpm(null);
+    }
+  }, [duration]);
+
+  // After a run finishes, re-read the PB in case this was a new record.
+  // The save effect uses setTimeout(0) to write, so we wait a tick longer.
+  useEffect(() => {
+    if (!isRunFinished) return;
+    const timerId = window.setTimeout(() => {
+      const stats = readUserStats();
+      const pb = stats?.bestByDuration[duration] ?? null;
+      if (pb?.keystrokeLog && pb.keystrokeLog.length > 0) {
+        setGhostLog(pb.keystrokeLog);
+        setGhostWpm(pb.wpm);
+      }
+    }, 50);
+    return () => window.clearTimeout(timerId);
+  }, [isRunFinished, duration]);
+
+  // Ghost cursor index — derived from elapsed time against the PB keystroke log.
+  // Recomputed on every engine tick (60fps) with no extra rAF needed.
+  const ghostIndex = useMemo<number | null>(() => {
+    if (!ghostLog || !snapshot.metrics.started || isRunFinished || isReplaying) return null;
+    const elapsedMs = snapshot.metrics.elapsed * 1000;
+    let idx = 0;
+    for (const entry of ghostLog) {
+      if (entry.t > elapsedMs) break;
+      // Forward char: cursor advances past the char that was typed.
+      // Backspace: cursor retreats to the cleared position.
+      if (entry.c !== null) idx = entry.i + 1;
+      else idx = entry.i;
+    }
+    return idx;
+  }, [ghostLog, snapshot.metrics.elapsed, snapshot.metrics.started, isRunFinished, isReplaying]);
 
   const focusTypingSoon = useCallback(() => {
     if (!typingEnabled) return;
@@ -945,6 +1006,8 @@ export default function TypingSurface() {
               capture={capture}
               enabled={typingEnabled && !isReplaying}
               finished={isRunFinished}
+              ghostIndex={ghostIndex}
+              ghostWpm={ghostWpm}
             />
 
             <BeginnerGuide

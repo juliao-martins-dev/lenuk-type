@@ -14,12 +14,14 @@ import {
   RefreshCw,
   ShieldCheck,
   Target,
-  TrendingUp
+  TrendingUp,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { clearUserStats, readUserStats, type StoredRun, type UserStats } from "@/lib/user-stats";
+import { WpmHeatmap } from "./wpm-heatmap";
 import { SiteCreditsFooter } from "../ui/site-credits-footer";
 import {
   DAY_LABELS,
@@ -246,6 +248,28 @@ export default function UserStatsClient() {
             </div>
           </CardContent>
         </Card>
+        {view.bestOverall?.keystrokeLog && view.bestOverall.promptText ? (
+          <Card className="border-border/80 bg-card shadow-sm">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <h2 className="text-lg font-semibold tracking-tight">{t("statsHeatmapTitle")}</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{t("statsHeatmapDesc")}</p>
+                </div>
+              </div>
+              <WpmHeatmap
+                text={view.bestOverall.promptText}
+                keystrokeLog={view.bestOverall.keystrokeLog}
+                wpm={view.bestOverall.wpm}
+                accuracy={view.bestOverall.accuracy}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_320px]">
           <Card className="border-border/80 bg-card shadow-sm">
             <CardContent className="space-y-4 p-5">

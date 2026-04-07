@@ -186,5 +186,6 @@ export function useTypingEngine(
     capture,
     restart: (nextDuration?: DurationSeconds) => engine.restart(nextDuration),
     setText: (nextText: string) => engine.setText(nextText),
+    getInputLog: () => engine.getInputLog(),
   };
 }

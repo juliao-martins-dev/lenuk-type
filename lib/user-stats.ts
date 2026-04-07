@@ -4,6 +4,16 @@ import { DurationSeconds } from "@/lib/engine/typing-engine";
 
 export type DifficultyValue = "easy" | "medium" | "hard";
 
+/** Compact keystroke entry for per-character WPM heatmap. */
+export type KeystrokeEntry = {
+  /** Relative timestamp in ms from the first keystroke. */
+  t: number;
+  /** true = correct, false = incorrect, null = Backspace. */
+  c: boolean | null;
+  /** Prompt character index at the time of this keystroke. */
+  i: number;
+};
+
 export type StoredRun = {
   id: string;
   at: string;
@@ -22,6 +32,10 @@ export type StoredRun = {
   correctChars: number;
   userName?: string;
   country?: string;
+  /** Per-keystroke timing log for WPM heatmap. Only stored on best runs. */
+  keystrokeLog?: KeystrokeEntry[];
+  /** The prompt text typed during this run, stored alongside the keystroke log. */
+  promptText?: string;
 };
 
 export type UserStats = {
@@ -190,7 +204,8 @@ export function recordRunCompleted(payload: RunCompletePayload): UserStats | nul
     typedChars: payload.typedChars ?? 0,
     correctChars: payload.correctChars ?? 0,
     userName: payload.userName,
-    country: payload.country
+    country: payload.country,
+    // keystrokeLog / promptText are attached below only when this run is a new PB.
   };
 
   stats.totals.testsCompleted += 1;
@@ -204,13 +219,18 @@ export function recordRunCompleted(payload: RunCompletePayload): UserStats | nul
 
   stats.recentRuns = [run, ...stats.recentRuns].slice(0, RUN_LIMIT);
 
+  // Attach timing data only to best-run records (keeps recentRuns lightweight).
+  const runWithTiming: StoredRun = payload.keystrokeLog
+    ? { ...run, keystrokeLog: payload.keystrokeLog, promptText: payload.promptText }
+    : run;
+
   if (isBetterRun(run, stats.bestOverall)) {
-    stats.bestOverall = run;
+    stats.bestOverall = runWithTiming;
   }
 
   const currentDurationBest = stats.bestByDuration[run.durationSeconds];
   if (isBetterRun(run, currentDurationBest)) {
-    stats.bestByDuration = { ...stats.bestByDuration, [run.durationSeconds]: run };
+    stats.bestByDuration = { ...stats.bestByDuration, [run.durationSeconds]: runWithTiming };
   }
 
   persist(stats);
