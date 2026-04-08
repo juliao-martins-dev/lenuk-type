@@ -22,6 +22,7 @@ import { DurationSeconds, type EngineMetrics, type EngineSnapshot } from "@/lib/
 import { readUserStats, recordRunCompleted, recordRunStarted, type KeystrokeEntry } from "@/lib/user-stats";
 import { useTypingEngine } from "@/hooks/use-typing-engine";
 import { useSwipeToRestart } from "@/hooks/use-swipe-to-restart";
+import { useAuth } from "@/hooks/use-auth";
 import { listLanguages, type SupportedLanguageCode } from "@/src/content/languages";
 import { useTestContent } from "@/src/content/use-test-content";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
@@ -209,6 +210,8 @@ function getOrCreateContentSeed() {
 
 export default function TypingSurface() {
   const { t } = useTranslation();
+  const auth = useAuth();
+  const [draftEmail, setDraftEmail] = useState("");
   const [duration, setDuration] = useState<DurationSeconds>(30);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy");
   const [baseContentSeed, setBaseContentSeed] = useState(DEFAULT_SEED);
@@ -364,7 +367,9 @@ export default function TypingSurface() {
     // The ref is always assigned during render before this effect fires, so null only on first mount.
     if (!latestMetricsRef.current) return;
     const metrics = latestMetricsRef.current;
-    const capturedUserId = getOrCreateUserId();
+    // Prefer the stable Supabase user ID (anonymous or named).
+    // Fall back to the localStorage UUID if auth has not resolved yet.
+    const capturedUserId = auth.user?.id ?? getOrCreateUserId();
 
     const apiPayload = {
       userId: capturedUserId,
@@ -774,6 +779,48 @@ export default function TypingSurface() {
                   {requiresOnboarding ? t("btnSaveAndStart") : t("btnSaveProfile")}
                 </Button>
               </div>
+
+              {/* ── Sync across devices (magic-link upgrade) ── */}
+              {!auth.loading && auth.isAnonymous && (
+                <div className="space-y-2 border-t border-border pt-4">
+                  <p className="text-xs font-medium text-muted-foreground">{t("authSyncTitle")}</p>
+                  <p className="text-xs text-muted-foreground">{t("authSyncDesc")}</p>
+
+                  {auth.magicLinkStatus === "sent" ? (
+                    <p className="rounded-md bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                      {t("authMagicLinkSent")}
+                    </p>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={draftEmail}
+                        onChange={(e) => setDraftEmail(e.target.value)}
+                        placeholder={t("authEmailPlaceholder")}
+                        className="h-9 flex-1 rounded-md border bg-background px-3 text-sm outline-none ring-ring focus:ring-2"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && draftEmail.trim()) {
+                            auth.sendMagicLink(draftEmail);
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 border"
+                        disabled={!draftEmail.trim() || auth.magicLinkStatus === "sending"}
+                        onClick={() => auth.sendMagicLink(draftEmail)}
+                      >
+                        {auth.magicLinkStatus === "sending" ? t("authSending") : t("authSendLink")}
+                      </Button>
+                    </div>
+                  )}
+
+                  {auth.magicLinkStatus === "error" && auth.magicLinkError && (
+                    <p className="text-xs text-destructive">{auth.magicLinkError}</p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
