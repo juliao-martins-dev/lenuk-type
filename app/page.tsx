@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import TypingSurface from "@/components/typing/typing-surface";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { homePageDescription, homePageTitle, siteAlternateNames, siteKeywords, siteName, siteOgImageAlt, siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -102,7 +103,9 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <TypingSurface />
+      <ErrorBoundary>
+        <TypingSurface />
+      </ErrorBoundary>
     </>
   );
 }
