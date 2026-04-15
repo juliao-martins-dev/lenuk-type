@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Activity, ArrowLeft, Crown, Medal, Search, Sparkles, Star, Target, Trophy, User, X, Zap } from "lucide-react";
+import { Activity, ArrowLeft, Medal, Search, Target, Trophy, User, X, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { SiteCreditsFooter } from "@/components/ui/site-credits-footer";
@@ -101,86 +101,123 @@ function rankPillClasses(rank: number) {
 }
 
 interface PodiumTheme {
-  platformHeight: string;
-  platformBg: string;
-  platformHighlight: string;
-  platformBorder: string;
-  platformShadow: string;
-  spotlight: string;
-  rankNumColor: string;
-  rankNumStroke: string;
-  cardRing: string;
-  cardGlow: string;
-  avatarRing: string;
-  avatarBg: string;
-  iconBg: string;
-  iconColor: string;
-  badgeBg: string;
-  badgeText: string;
+  pillarHeight: string;
+  numberGradient: string;
+  numberShadow: string;
+  cupGradient: string;
+  cupStroke: string;
+  cupShadow: string;
+  cupSize: string;
   accent: string;
 }
 
 const PODIUM_THEMES: Record<number, PodiumTheme> = {
   1: {
-    platformHeight: "h-36 sm:h-40",
-    platformBg: "bg-gradient-to-b from-amber-200 via-yellow-400 to-amber-600",
-    platformHighlight: "bg-gradient-to-b from-white/70 via-white/10 to-transparent",
-    platformBorder: "border-amber-300/70",
-    platformShadow: "shadow-[0_20px_60px_-15px_rgba(251,191,36,0.55)]",
-    spotlight: "bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.35),transparent_60%)]",
-    rankNumColor: "text-amber-950",
-    rankNumStroke: "drop-shadow-[0_2px_0_rgba(255,255,255,0.4)]",
-    cardRing: "ring-2 ring-amber-400/60",
-    cardGlow: "shadow-[0_10px_40px_-10px_rgba(251,191,36,0.45)]",
-    avatarRing: "ring-4 ring-amber-400/70 ring-offset-2 ring-offset-background",
-    avatarBg: "bg-gradient-to-br from-amber-200 to-amber-500",
-    iconBg: "bg-gradient-to-br from-amber-300 to-amber-600 border-amber-200/70",
-    iconColor: "text-amber-950",
-    badgeBg: "bg-amber-400/20 border-amber-400/40",
-    badgeText: "text-amber-700 dark:text-amber-300",
-    accent: "text-amber-500",
+    pillarHeight: "h-[260px] sm:h-[300px]",
+    numberGradient: "bg-[linear-gradient(180deg,#fde68a_0%,#f59e0b_45%,#b45309_100%)]",
+    numberShadow: "drop-shadow-[0_4px_6px_rgba(180,83,9,0.25)]",
+    cupGradient: "from-[#fff3b0] via-[#fbbf24] to-[#a16207]",
+    cupStroke: "stroke-[#92400e]",
+    cupShadow: "drop-shadow-[0_14px_18px_rgba(161,98,7,0.35)]",
+    cupSize: "h-28 w-28 sm:h-36 sm:w-36",
+    accent: "text-amber-600",
   },
   2: {
-    platformHeight: "h-24 sm:h-28",
-    platformBg: "bg-gradient-to-b from-slate-100 via-slate-300 to-slate-500",
-    platformHighlight: "bg-gradient-to-b from-white/60 via-white/10 to-transparent",
-    platformBorder: "border-slate-300/70",
-    platformShadow: "shadow-[0_15px_45px_-15px_rgba(148,163,184,0.5)]",
-    spotlight: "bg-[radial-gradient(ellipse_at_center,rgba(148,163,184,0.25),transparent_60%)]",
-    rankNumColor: "text-slate-900",
-    rankNumStroke: "drop-shadow-[0_2px_0_rgba(255,255,255,0.4)]",
-    cardRing: "ring-2 ring-slate-300/50",
-    cardGlow: "shadow-[0_8px_30px_-10px_rgba(148,163,184,0.35)]",
-    avatarRing: "ring-4 ring-slate-300/70 ring-offset-2 ring-offset-background",
-    avatarBg: "bg-gradient-to-br from-slate-200 to-slate-400",
-    iconBg: "bg-gradient-to-br from-slate-200 to-slate-400 border-slate-200/70",
-    iconColor: "text-slate-800",
-    badgeBg: "bg-slate-400/15 border-slate-400/30",
-    badgeText: "text-slate-700 dark:text-slate-300",
-    accent: "text-slate-400",
+    pillarHeight: "h-[180px] sm:h-[220px]",
+    numberGradient: "bg-[linear-gradient(180deg,#f8fafc_0%,#94a3b8_50%,#475569_100%)]",
+    numberShadow: "drop-shadow-[0_4px_6px_rgba(71,85,105,0.25)]",
+    cupGradient: "from-[#f8fafc] via-[#cbd5e1] to-[#64748b]",
+    cupStroke: "stroke-[#334155]",
+    cupShadow: "drop-shadow-[0_12px_16px_rgba(100,116,139,0.35)]",
+    cupSize: "h-20 w-20 sm:h-28 sm:w-28",
+    accent: "text-slate-500",
   },
   3: {
-    platformHeight: "h-16 sm:h-20",
-    platformBg: "bg-gradient-to-b from-orange-300 via-orange-500 to-orange-800",
-    platformHighlight: "bg-gradient-to-b from-white/50 via-white/10 to-transparent",
-    platformBorder: "border-orange-400/70",
-    platformShadow: "shadow-[0_12px_40px_-15px_rgba(234,88,12,0.5)]",
-    spotlight: "bg-[radial-gradient(ellipse_at_center,rgba(234,88,12,0.25),transparent_60%)]",
-    rankNumColor: "text-orange-950",
-    rankNumStroke: "drop-shadow-[0_2px_0_rgba(255,255,255,0.35)]",
-    cardRing: "ring-2 ring-orange-400/50",
-    cardGlow: "shadow-[0_8px_30px_-10px_rgba(234,88,12,0.35)]",
-    avatarRing: "ring-4 ring-orange-400/60 ring-offset-2 ring-offset-background",
-    avatarBg: "bg-gradient-to-br from-orange-300 to-orange-600",
-    iconBg: "bg-gradient-to-br from-orange-300 to-orange-600 border-orange-200/70",
-    iconColor: "text-orange-950",
-    badgeBg: "bg-orange-500/15 border-orange-500/30",
-    badgeText: "text-orange-700 dark:text-orange-300",
-    accent: "text-orange-500",
+    pillarHeight: "h-[130px] sm:h-[160px]",
+    numberGradient: "bg-[linear-gradient(180deg,#fed7aa_0%,#c2410c_50%,#7c2d12_100%)]",
+    numberShadow: "drop-shadow-[0_4px_6px_rgba(124,45,18,0.3)]",
+    cupGradient: "from-[#fed7aa] via-[#ea580c] to-[#7c2d12]",
+    cupStroke: "stroke-[#431407]",
+    cupShadow: "drop-shadow-[0_10px_14px_rgba(124,45,18,0.35)]",
+    cupSize: "h-16 w-16 sm:h-24 sm:w-24",
+    accent: "text-orange-700",
   },
 };
 
-function PodiumCard({
+/** Decorative trophy-cup illustration. Tinted via the `gradientId` stops. */
+function TrophyCup({ theme, rank }: { theme: PodiumTheme; rank: number }) {
+  const gradientId = `trophy-grad-${rank}`;
+  const highlightId = `trophy-highlight-${rank}`;
+
+  return (
+    <svg
+      viewBox="0 0 100 120"
+      className={`${theme.cupSize} ${theme.cupShadow}`}
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" className={`[stop-color:var(--tw-gradient-from)]`} style={{ stopColor: "var(--cup-from)" }} />
+          <stop offset="50%" style={{ stopColor: "var(--cup-via)" }} />
+          <stop offset="100%" style={{ stopColor: "var(--cup-to)" }} />
+        </linearGradient>
+        <linearGradient id={highlightId} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="white" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Bowl */}
+      <path
+        d="M25 15 L75 15 L72 50 Q70 70 50 75 Q30 70 28 50 Z"
+        fill={`url(#${gradientId})`}
+        strokeWidth="1.2"
+        className={theme.cupStroke}
+      />
+      {/* Inner highlight streak */}
+      <path
+        d="M32 20 L38 20 L36 55 Q36 62 40 66 L34 64 Q30 58 30 50 Z"
+        fill={`url(#${highlightId})`}
+      />
+      {/* Left handle */}
+      <path
+        d="M25 22 Q12 24 12 36 Q12 48 25 48"
+        fill="none"
+        strokeWidth="4"
+        className={theme.cupStroke}
+        stroke="currentColor"
+        style={{ stroke: "var(--cup-via)" }}
+      />
+      {/* Right handle */}
+      <path
+        d="M75 22 Q88 24 88 36 Q88 48 75 48"
+        fill="none"
+        strokeWidth="4"
+        style={{ stroke: "var(--cup-via)" }}
+      />
+      {/* Rank number on the bowl */}
+      <text
+        x="50"
+        y="48"
+        textAnchor="middle"
+        fontSize="22"
+        fontWeight="900"
+        fill="rgba(0,0,0,0.35)"
+        fontFamily="system-ui, sans-serif"
+      >
+        {rank}
+      </text>
+      {/* Stem */}
+      <rect x="46" y="75" width="8" height="18" rx="1.5" fill={`url(#${gradientId})`} />
+      {/* Base top */}
+      <rect x="35" y="93" width="30" height="6" rx="1.5" fill={`url(#${gradientId})`} />
+      {/* Base bottom */}
+      <rect x="28" y="99" width="44" height="10" rx="2" fill={`url(#${gradientId})`} />
+    </svg>
+  );
+}
+
+function PodiumColumn({
   entry,
   theme,
   playerLabel,
@@ -194,74 +231,47 @@ function PodiumCard({
   const { item, rank, score } = entry;
   const name = playerLabel(item);
   const country = item.country ? countryName(item.country) : "";
-  const isFirst = rank === 1;
-  const RankIcon = rank === 1 ? Crown : rank === 2 ? Trophy : Medal;
+
+  // Map theme colors into CSS custom properties so the inline SVG gradient works.
+  const cssVars: Record<string, string> = (
+    {
+      1: { "--cup-from": "#fff3b0", "--cup-via": "#fbbf24", "--cup-to": "#a16207" },
+      2: { "--cup-from": "#f8fafc", "--cup-via": "#cbd5e1", "--cup-to": "#64748b" },
+      3: { "--cup-from": "#fed7aa", "--cup-via": "#ea580c", "--cup-to": "#7c2d12" },
+    } as const
+  )[rank] ?? {};
 
   return (
-    <div className={`relative flex w-full flex-col items-center ${isFirst ? "scale-100" : "scale-[0.94]"}`}>
-      {/* Floating crown / medal halo */}
-      <div className="relative z-10 mb-[-22px]">
-        {isFirst && (
-          <>
-            <span
-              aria-hidden
-              className="absolute inset-[-12px] animate-ping rounded-full bg-amber-400/30 motion-reduce:animate-none"
-            />
-            <span
-              aria-hidden
-              className="absolute inset-[-6px] rounded-full bg-amber-400/20 blur-md"
-            />
-          </>
-        )}
-        <span
-          className={`relative inline-flex h-14 w-14 items-center justify-center rounded-full border-2 shadow-xl ${theme.iconBg}`}
-        >
-          <RankIcon className={`h-7 w-7 ${theme.iconColor}`} />
-        </span>
+    <div className="flex flex-col items-center" style={cssVars as React.CSSProperties}>
+      {/* Trophy cup sitting on top */}
+      <div className="relative z-10 flex items-end justify-center">
+        <TrophyCup theme={theme} rank={rank} />
       </div>
 
-      {/* Info card */}
-      <div
-        className={`relative w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-background/95 to-background/70 px-3 pb-4 pt-8 text-center backdrop-blur-md ${theme.cardRing} ${theme.cardGlow}`}
-      >
-        {/* Sparkles for champion */}
-        {isFirst && (
-          <>
-            <Sparkles className="absolute left-3 top-3 h-3 w-3 animate-pulse text-amber-400 motion-reduce:animate-none" aria-hidden />
-            <Star className="absolute right-3 top-4 h-3 w-3 animate-pulse text-amber-300 motion-reduce:animate-none [animation-delay:400ms]" aria-hidden />
-            <Sparkles className="absolute right-5 bottom-14 h-2.5 w-2.5 animate-pulse text-amber-400/80 motion-reduce:animate-none [animation-delay:800ms]" aria-hidden />
-          </>
-        )}
-
-        {/* Avatar */}
-        <div className={`mx-auto mb-3 flex ${isFirst ? "h-16 w-16" : "h-14 w-14"} items-center justify-center rounded-full ${theme.avatarBg} ${theme.avatarRing} shadow-lg`}>
-          <User className={`${isFirst ? "h-8 w-8" : "h-7 w-7"} text-background/80`} />
-        </div>
-
-        {/* Name */}
-        <p className={`mx-auto w-full truncate font-bold leading-tight ${isFirst ? "text-base sm:text-lg" : "text-sm"}`}>
+      {/* Player info caption — sits directly below the trophy */}
+      <div className="relative z-10 mt-3 mb-3 w-full text-center">
+        <p
+          className={`mx-auto max-w-full truncate font-bold leading-tight text-foreground ${
+            rank === 1 ? "text-base sm:text-lg" : "text-sm"
+          }`}
+          title={name}
+        >
           {name}
         </p>
 
-        {/* Country */}
         {(item.country || country) ? (
-          <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
             {item.country ? <CountryFlag code={item.country} className="shadow-sm" /> : null}
             <span className="truncate">{country || t("lbUnknownCountry")}</span>
           </div>
         ) : null}
 
-        {/* Champion label */}
-        {isFirst && (
-          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-400/50 bg-gradient-to-r from-amber-400/20 to-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-            <Sparkles className="h-2.5 w-2.5" />
-            {t("lbChampion", { defaultValue: "Champion" })}
-          </div>
-        )}
-
-        {/* Hero WPM */}
-        <div className={`mt-3 flex items-baseline justify-center gap-1`}>
-          <span className={`font-black tabular-nums leading-none ${theme.accent} ${isFirst ? "text-4xl sm:text-5xl" : "text-3xl"}`}>
+        <div className="mt-1.5 flex items-baseline justify-center gap-1">
+          <span
+            className={`font-black tabular-nums ${theme.accent} ${
+              rank === 1 ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl"
+            }`}
+          >
             {item.wpm}
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -269,47 +279,50 @@ function PodiumCard({
           </span>
         </div>
 
-        {/* Stat pills */}
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${theme.badgeBg} ${theme.badgeText}`}>
+        <div className="mt-0.5 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
             <Target className="h-2.5 w-2.5" />
             {item.accuracy}%
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          <span className="text-border">·</span>
+          <span className="inline-flex items-center gap-1">
             <Trophy className="h-2.5 w-2.5" />
             {score}
           </span>
         </div>
       </div>
 
-      {/* Podium platform */}
+      {/* White pillar with giant metallic rank number on its face */}
       <div
-        className={`relative -mt-1 flex w-full items-center justify-center overflow-hidden rounded-t-xl border-x border-t ${theme.platformHeight} ${theme.platformBg} ${theme.platformBorder} ${theme.platformShadow}`}
+        className={`relative w-full ${theme.pillarHeight} rounded-t-md bg-gradient-to-b from-white to-slate-100 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.25),inset_-6px_0_12px_-6px_rgba(0,0,0,0.08),inset_6px_0_12px_-6px_rgba(255,255,255,0.9)] dark:from-slate-200 dark:to-slate-300`}
       >
-        {/* Top highlight */}
-        <div aria-hidden className={`absolute inset-x-0 top-0 h-1/3 ${theme.platformHighlight}`} />
+        {/* Top edge highlight */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1 rounded-t-md bg-gradient-to-r from-transparent via-white to-transparent"
+        />
 
-        {/* Shimmer for champion */}
-        {isFirst && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_2.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent motion-reduce:hidden"
-          />
-        )}
-
-        {/* Rank number */}
-        <span
-          className={`relative z-10 font-black tracking-tight ${theme.rankNumColor} ${theme.rankNumStroke} ${
-            isFirst ? "text-6xl sm:text-7xl" : rank === 2 ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl"
-          }`}
-        >
-          {rank}
-        </span>
-
-        {/* Side shadow for 3D feel */}
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-black/15 to-transparent" />
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-black/10 to-transparent" />
+        {/* Large metallic rank number, filled via gradient + background-clip */}
+        <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-center">
+          <span
+            className={`bg-clip-text font-black leading-none tracking-tight text-transparent ${theme.numberGradient} ${theme.numberShadow} ${
+              rank === 1
+                ? "text-[110px] sm:text-[140px]"
+                : rank === 2
+                  ? "text-[80px] sm:text-[100px]"
+                  : "text-[60px] sm:text-[80px]"
+            }`}
+          >
+            {rank}
+          </span>
+        </div>
       </div>
+
+      {/* Cast shadow beneath the pillar */}
+      <div
+        aria-hidden
+        className="h-2 w-[85%] rounded-[50%] bg-slate-900/15 blur-md dark:bg-black/40"
+      />
     </div>
   );
 }
@@ -323,68 +336,69 @@ function PodiumStage({
   playerLabel: (item: LeaderboardItem) => string;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
-  // Center = 1st, left = 2nd, right = 3rd
+  // Order: bronze (3) left, gold (1) center, silver (2) right — matches the
+  // studio podium reference with the tallest pillar in the middle.
   const displayOrder =
     podiumItems.length >= 3
-      ? [podiumItems[1], podiumItems[0], podiumItems[2]]
+      ? [podiumItems[2], podiumItems[0], podiumItems[1]]
       : podiumItems.length === 2
         ? [podiumItems[1], podiumItems[0]]
         : podiumItems;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-b from-slate-950/95 via-slate-900/90 to-slate-950 shadow-2xl">
-      {/* Inline keyframes for platform shimmer */}
-      <style>{`@keyframes shimmer { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }`}</style>
+    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-[linear-gradient(135deg,#f5f5f4_0%,#e7e5e4_55%,#d6d3d1_100%)] shadow-xl dark:bg-[linear-gradient(135deg,#1e293b_0%,#0f172a_55%,#020617_100%)]">
+      {/* Diagonal light rays — window blinds effect */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "repeating-linear-gradient(115deg, rgba(255,255,255,0.35) 0 2px, transparent 2px 28px, rgba(255,255,255,0.22) 28px 30px, transparent 30px 70px)",
+          maskImage: "radial-gradient(ellipse at 30% 10%, black 0%, transparent 70%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 30% 10%, black 0%, transparent 70%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60 dark:opacity-30"
+        style={{
+          background:
+            "repeating-linear-gradient(60deg, rgba(255,255,255,0.25) 0 1px, transparent 1px 40px, rgba(255,255,255,0.12) 40px 42px, transparent 42px 90px)",
+          maskImage: "radial-gradient(ellipse at 80% 5%, black 0%, transparent 65%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 80% 5%, black 0%, transparent 65%)",
+        }}
+      />
 
-      {/* Ambient stadium backdrop */}
-      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(251,191,36,0.12),transparent_50%)]" />
-      <div aria-hidden className="absolute inset-0 opacity-[0.03]" style={{
-        backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
-        backgroundSize: "24px 24px",
-      }} />
+      {/* Soft vignette floor */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/10 via-black/5 to-transparent dark:from-black/50 dark:via-black/20"
+      />
 
-      {/* Header */}
-      <div className="relative flex items-center justify-center gap-2 px-4 pt-5 pb-2">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/40 to-amber-400/40" />
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
+      {/* Header ribbon */}
+      <div className="relative flex items-center justify-center gap-3 px-4 pt-6">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-foreground/20" />
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-white/60 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-700 shadow-sm backdrop-blur dark:bg-slate-900/50 dark:text-amber-300">
           <Trophy className="h-3 w-3" />
           {t("lbTopThree", { defaultValue: "Top 3 Champions" })}
         </div>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-amber-400/40 to-amber-400/40" />
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-foreground/20" />
       </div>
 
-      {/* Spotlights behind each position */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-8 flex justify-center gap-2 px-4">
-        {displayOrder.map(({ rank }, idx) => {
-          const theme = PODIUM_THEMES[rank] ?? PODIUM_THEMES[3];
-          return (
-            <div
-              key={`spot-${idx}`}
-              className={`h-64 ${rank === 1 ? "w-[36%]" : "w-[32%]"} ${theme.spotlight}`}
-            />
-          );
-        })}
-      </div>
-
-      {/* Podium row */}
-      <div className="relative flex items-end justify-center gap-3 px-3 pt-6 sm:gap-4 sm:px-6">
+      {/* Podium row — pillars aligned at the bottom so heights tell the story */}
+      <div className="relative flex items-end justify-center gap-4 px-4 pt-10 pb-6 sm:gap-8 sm:px-10">
         {displayOrder.map((entry) => {
           const theme = PODIUM_THEMES[entry.rank] ?? PODIUM_THEMES[3];
           const isFirst = entry.rank === 1;
           return (
             <div
               key={`podium-${entry.item.id}-${entry.rank}`}
-              className={`${isFirst ? "w-[36%]" : "w-[32%]"}`}
+              className={`${isFirst ? "w-[32%]" : "w-[28%]"} max-w-[200px]`}
             >
-              <PodiumCard entry={entry} theme={theme} playerLabel={playerLabel} t={t} />
+              <PodiumColumn entry={entry} theme={theme} playerLabel={playerLabel} t={t} />
             </div>
           );
         })}
-      </div>
-
-      {/* Stage floor */}
-      <div className="relative h-4 bg-gradient-to-b from-slate-800 via-slate-900 to-black">
-        <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
       </div>
     </div>
   );
