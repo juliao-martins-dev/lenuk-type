@@ -112,12 +112,11 @@ const backendDiagnostics: ResultsBackendDiagnostics = {
   cacheTtlMs: SUPABASE_GET_CACHE_TTL_MS,
   pgRetryCooldownMs: SUPABASE_PG_RETRY_COOLDOWN_MS,
   pgConfigured: Boolean(SUPABASE_DB_URL),
-  supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+  supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL?.trim()),
   supabaseKeyConfigured: Boolean(
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
       process.env.SUPABASE_ANON_KEY?.trim() ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+      process.env.SUPABASE_PUBLISHABLE_KEY?.trim()
   ),
   lastGetBackend: "unknown",
   lastPostBackend: "unknown",

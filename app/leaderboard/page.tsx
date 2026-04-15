@@ -9,6 +9,7 @@ import { CountryFlag } from "@/components/ui/country-flag";
 import { SiteCreditsFooter } from "@/components/ui/site-credits-footer";
 import { countryName } from "@/lib/countries";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { readPublicConfig } from "@/lib/public-config";
 
 interface LeaderboardItem {
   id: string;
@@ -29,7 +30,6 @@ type LeaderboardStatus = "loading" | "live" | "error";
 type SortOption = "leaderboard" | "wpm" | "accuracy" | "latest";
 
 const POLL_INTERVAL_MS = 15_000;
-const REALTIME_TABLE = process.env.NEXT_PUBLIC_SUPABASE_RESULTS_TABLE || "lenuk_typing_users";
 const DIFFICULTY_WEIGHTS: Record<string, number> = {
   easy: 1,
   medium: 1.08,
@@ -517,9 +517,10 @@ export default function LeaderboardPage() {
     let supabaseChannel: ReturnType<ReturnType<typeof getSupabaseBrowserClient>["channel"]> | null = null;
     try {
       const supabase = getSupabaseBrowserClient();
+      const realtimeTable = readPublicConfig().supabaseResultsTable;
       supabaseChannel = supabase
         .channel("leaderboard-realtime")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: REALTIME_TABLE }, () => {
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: realtimeTable }, () => {
           void load();
         })
         .subscribe((channelStatus) => {

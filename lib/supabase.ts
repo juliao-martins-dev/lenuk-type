@@ -1,57 +1,51 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { readPublicConfig } from "@/lib/public-config";
 
-function getSupabaseUrl() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim() || "";
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL)");
-  }
-
+function getServerSupabaseUrl() {
+  const url = process.env.SUPABASE_URL?.trim() ?? "";
+  if (!url) throw new Error("Missing SUPABASE_URL");
   return url;
 }
 
-function getSupabasePublicKey() {
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    process.env.SUPABASE_ANON_KEY?.trim() ||
-    "";
-
-  if (!key) {
-    throw new Error("Missing Supabase public key (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY)");
-  }
-
-  return key;
-}
-
-function getSupabaseServerKey() {
+function getServerSupabaseServerKey() {
   return (
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
     process.env.SUPABASE_ANON_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    getSupabasePublicKey()
+    process.env.SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    ""
   );
 }
 
 let browserClient: SupabaseClient | null = null;
 let serverClient: SupabaseClient | null = null;
 
+/**
+ * Browser Supabase client — reads the URL + publishable key from the runtime
+ * config injected by the root layout (window.__LENUK_CONFIG__). The values
+ * never appear in the compiled client JS bundle.
+ */
 export function getSupabaseBrowserClient() {
   if (!browserClient) {
-    browserClient = createClient(getSupabaseUrl(), getSupabasePublicKey());
+    const { supabaseUrl, supabasePublishableKey } = readPublicConfig();
+    if (!supabaseUrl || !supabasePublishableKey) {
+      throw new Error("Supabase public config is missing at runtime.");
+    }
+    browserClient = createClient(supabaseUrl, supabasePublishableKey);
   }
-
   return browserClient;
 }
 
+/**
+ * Server Supabase client — uses the service role key when available, else
+ * falls back to the anon/publishable key. Must only be called server-side.
+ */
 export function getSupabaseServerClient() {
   if (!serverClient) {
-    serverClient = createClient(getSupabaseUrl(), getSupabaseServerKey(), {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+    const key = getServerSupabaseServerKey();
+    if (!key) throw new Error("Missing Supabase server key");
+    serverClient = createClient(getServerSupabaseUrl(), key, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
   }
-
   return serverClient;
 }

@@ -128,16 +128,18 @@ npm start
 Create `.env.local` with the values you use:
 
 ```bash
-# Supabase project URL
-NEXT_PUBLIC_SUPABASE_URL=
+# Supabase project URL (server-only — never prefixed NEXT_PUBLIC_).
+# The URL + publishable key reach the browser at runtime via the inline
+# config script emitted from the root layout, so they never end up in
+# the compiled JS bundle.
 SUPABASE_URL=
 
-# Public key (at least one)
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+# Publishable / anon key (at least one)
+SUPABASE_PUBLISHABLE_KEY=
 # or
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_ANON_KEY=
 
-# Optional server key (recommended for server routes)
+# Server-only key (recommended for server routes)
 SUPABASE_SERVICE_ROLE_KEY=
 
 # Optional direct Postgres (if set, server tries pg first, then REST fallback)

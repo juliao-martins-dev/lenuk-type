@@ -2,6 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { siteAlternateNames, siteDescription, siteKeywords, siteName, siteOgImageAlt, siteTitle, siteUrl } from "@/lib/site";
 import { I18nProvider } from "@/components/providers/i18n-provider";
+import {
+  RUNTIME_CONFIG_GLOBAL,
+  getServerPublicConfig,
+  serializePublicConfig,
+} from "@/lib/public-config";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -132,20 +137,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     },
   };
 
+  // Runtime-injected public config. Emitted from the server at request time
+  // so values never land in the compiled client JS bundle.
+  const publicConfig = getServerPublicConfig();
+  const publicConfigScript = `window.${RUNTIME_CONFIG_GLOBAL}=${serializePublicConfig(publicConfig)};`;
+  const plausibleDomain = process.env.PLAUSIBLE_DOMAIN?.trim();
+
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: publicConfigScript }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         <I18nProvider>{children}</I18nProvider>
-        {/* Plausible Analytics — loads only in production, privacy-first, no cookies */}
-        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+        {/* Plausible Analytics — loads only when PLAUSIBLE_DOMAIN is set */}
+        {plausibleDomain && (
           <script
             defer
-            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            data-domain={plausibleDomain}
             src="https://plausible.io/js/script.js"
           />
         )}
