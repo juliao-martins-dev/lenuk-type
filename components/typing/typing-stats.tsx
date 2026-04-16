@@ -58,13 +58,13 @@ function TypingStatsInner({ metrics, finished }: TypingStatsProps) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-xl border border-border/40 bg-card/50 px-4 py-3 backdrop-blur">
-        <LiveStat label={t("statsWPM")} value={metrics.wpm} highlight />
+        <LiveStat label={t("statsWPM")} value={metrics.wpm} highlight valueCh={3} />
         <span className="hidden h-5 w-px bg-border/40 sm:block" aria-hidden />
-        <LiveStat label={t("statsAccuracy")} value={`${metrics.accuracy}%`} />
-        <LiveStat label={t("statsRaw")} value={metrics.rawWpm} />
-        <LiveStat label={t("statsErrors")} value={metrics.errors} />
-        <LiveStat label={t("statsTime")} value={`${Math.ceil(metrics.timeLeft)}s`} />
-        <StreakStat label={t("statsStreak")} streak={metrics.streak} />
+        <LiveStat label={t("statsAccuracy")} value={`${metrics.accuracy}%`} valueCh={4} />
+        <LiveStat label={t("statsRaw")} value={metrics.rawWpm} valueCh={3} />
+        <LiveStat label={t("statsErrors")} value={metrics.errors} valueCh={3} />
+        <LiveStat label={t("statsTime")} value={`${Math.ceil(metrics.timeLeft)}s`} valueCh={3} />
+        <StreakStat label={t("statsStreak")} streak={metrics.streak} valueCh={3} />
       </div>
 
       {metrics.wpmSamples.length >= 2 && (
@@ -96,11 +96,16 @@ export const TypingStats = memo(TypingStatsInner, (prev, next) => (
 ));
 
 /* ── Live stat (during run) ── */
-function LiveStat({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+function LiveStat({ label, value, highlight, valueCh = 3 }: { label: string; value: string | number; highlight?: boolean; valueCh?: number }) {
   return (
     <div className="flex items-baseline gap-1.5">
       <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[hsl(var(--sub))]">{label}</span>
-      <span className={`text-lg font-bold tabular-nums ${highlight ? "text-[hsl(var(--caret))]" : "text-foreground"}`}>{value}</span>
+      <span
+        className={`inline-block text-left text-lg font-bold tabular-nums ${highlight ? "text-[hsl(var(--caret))]" : "text-foreground"}`}
+        style={{ minWidth: `${valueCh}ch` }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -116,7 +121,7 @@ function ResultStat({ label, value }: { label: string; value: string | number })
 }
 
 /* ── Streak with progressive color ── */
-function StreakStat({ label, streak }: { label: string; streak: number }) {
+function StreakStat({ label, streak, valueCh = 3 }: { label: string; streak: number; valueCh?: number }) {
   let valueClass = "text-foreground";
   if (streak >= 50) valueClass = "text-orange-500 dark:text-orange-400";
   else if (streak >= 25) valueClass = "text-amber-500 dark:text-amber-400";
@@ -125,7 +130,12 @@ function StreakStat({ label, streak }: { label: string; streak: number }) {
   return (
     <div className="flex items-baseline gap-1.5">
       <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[hsl(var(--sub))]">{label}</span>
-      <span className={`text-lg font-bold tabular-nums transition-colors duration-200 ${valueClass}`}>{streak}</span>
+      <span
+        className={`inline-block text-left text-lg font-bold tabular-nums transition-colors duration-200 ${valueClass}`}
+        style={{ minWidth: `${valueCh}ch` }}
+      >
+        {streak}
+      </span>
     </div>
   );
 }
