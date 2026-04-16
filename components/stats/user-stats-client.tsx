@@ -18,7 +18,6 @@ import {
   Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { clearUserStats, readUserStats, type StoredRun, type UserStats } from "@/lib/user-stats";
 import { WpmHeatmap } from "./wpm-heatmap";
@@ -92,107 +91,122 @@ export default function UserStatsClient() {
   const hasRuns = view.hasAnyRuns;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 md:py-10">
-      <div className="space-y-6">
-        <Card className="border-border/80 bg-card shadow-sm">
-          <CardContent className="space-y-6 p-5 md:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">{t("statsTitle")}</p>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight md:text-3xl">
-                    <span>{profile.name || t("statsGuestName")}</span>
-                    {profile.country ? <CountryFlag code={profile.country} className="shadow-sm" /> : null}
-                  </div>
-                  <p className="max-w-2xl text-sm text-muted-foreground">{t("statsSubtitle")}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <InfoPill label={t("statsLabelJoined")} value={joinedAt} />
-                  <InfoPill label={t("statsLabelCompleted")} value={view.stats.totals.testsCompleted} />
-                  <InfoPill label={t("statsLabelCompletion")} value={`${view.completionRate}%`} />
-                  <InfoPill label={t("statsLabelUpdated")} value={view.stats.updatedAt ? formatRelativeTime(view.stats.updatedAt, i18n.language) : t("statsNever")} />
-                </div>
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:py-8">
+      <div className="space-y-8">
+        {/* ── HERO ── */}
+        <section className="space-y-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--caret)/0.12)] text-[hsl(var(--caret))] ring-1 ring-[hsl(var(--caret)/0.25)]">
+                <BarChart3 className="h-6 w-6" />
               </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Link
-                  href="/"
-                  className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition hover:bg-accent"
-                >
-                  <Home className="h-4 w-4" />
-                  {t("statsBtnBack")}
-                </Link>
-                <Button variant="ghost" className="h-10 border border-border px-3" onClick={handleExport} disabled={!hasRuns}>
-                  <Download className="mr-2 h-4 w-4" />
-                  {t("statsBtnExport")}
-                </Button>
-                <Button variant="ghost" className="h-10 border border-border px-3 text-destructive" onClick={handleReset}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {t("statsBtnReset")}
-                </Button>
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsTitle")}</p>
+                <div className="flex flex-wrap items-center gap-3 text-3xl font-bold tracking-tight md:text-4xl">
+                  <span>{profile.name || t("statsGuestName")}</span>
+                  {profile.country ? <CountryFlag code={profile.country} className="shadow-sm" /> : null}
+                </div>
+                <p className="text-sm text-[hsl(var(--sub))]">
+                  {joinedAt} · {view.stats.totals.testsCompleted} {t("statsLabelCompleted").toLowerCase()}
+                </p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+              <Link
+                href="/"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium text-[hsl(var(--sub))] transition hover:text-foreground"
+              >
+                <Home className="h-3.5 w-3.5" />
+                {t("statsBtnBack")}
+              </Link>
+              <Button variant="ghost" size="sm" className="h-9 px-3 text-xs" onClick={handleExport} disabled={!hasRuns}>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                {t("statsBtnExport")}
+              </Button>
+              <Button variant="ghost" size="sm" className="h-9 px-3 text-xs text-destructive hover:text-destructive" onClick={handleReset}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                {t("statsBtnReset")}
+              </Button>
+            </div>
+          </div>
+
+          {/* All-time best hero banner */}
+          {view.bestOverall ? (
+            <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--caret)/0.2)] bg-gradient-to-br from-[hsl(var(--caret)/0.08)] via-transparent to-transparent p-5 md:p-6">
+              <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-[hsl(var(--caret)/0.12)] blur-3xl" />
+              <div className="relative flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium">{t("statsScope")}</p>
-                  <p className="text-sm text-muted-foreground">{view.scopeDescription}</p>
-                </div>
-                {view.bestOverall ? (
-                  <div className="rounded-xl border border-border bg-background px-4 py-3 text-right">
-                    <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{t("statsAllTimeBest")}</p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">{view.bestOverall.wpm} WPM</p>
-                    <p className="text-sm text-muted-foreground">{view.bestOverall.accuracy}% {t("statsColAccuracy").toLowerCase()}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsAllTimeBest")}</p>
+                  <div className="mt-2 flex items-baseline gap-3">
+                    <span className="text-6xl font-extrabold tabular-nums leading-none tracking-tight text-[hsl(var(--caret))] md:text-7xl">
+                      {view.bestOverall.wpm}
+                    </span>
+                    <span className="text-lg font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))]">wpm</span>
                   </div>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {RANGE_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setRange(option.id)}
-                    className={`rounded-md border px-3 py-2 text-sm transition ${
-                      option.id === range
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t(RANGE_KEY_MAP[option.id] ?? "rangeAll")}
-                  </button>
-                ))}
+                  <p className="mt-2 text-sm text-[hsl(var(--sub))]">
+                    {view.bestOverall.accuracy}% {t("statsColAccuracy").toLowerCase()} · {t("statsLabelCompletion")} {view.completionRate}%
+                  </p>
+                </div>
+                <div className="text-right text-xs text-[hsl(var(--sub))]">
+                  <p className="font-semibold uppercase tracking-[0.15em]">{t("statsLabelUpdated")}</p>
+                  <p className="mt-1 tabular-nums">{view.stats.updatedAt ? formatRelativeTime(view.stats.updatedAt, i18n.language) : t("statsNever")}</p>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {/* Range pill selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsScope")}</p>
+              <p className="mt-1 text-sm text-foreground">{view.scopeDescription}</p>
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-xl border border-border/40 bg-card/50 p-1 backdrop-blur">
+              {RANGE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setRange(option.id)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    option.id === range
+                      ? "bg-[hsl(var(--caret))] text-[hsl(var(--background))]"
+                      : "text-[hsl(var(--sub))] hover:text-foreground"
+                  }`}
+                >
+                  {t(RANGE_KEY_MAP[option.id] ?? "rangeAll")}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <MetricCard icon={<Activity className="h-4 w-4" />} label={t("statsMetricRuns")} value={view.filteredRunsDesc.length} detail={range === "all" ? t("statsAllRuns") : view.scopeLabel} />
-          <MetricCard icon={<TrendingUp className="h-4 w-4" />} label={t("statsMetricSpeed")} value={view.avgWpm} suffix="wpm" detail={t("statsBestWpm", { n: view.bestWpm })} />
+          <MetricCard icon={<TrendingUp className="h-4 w-4" />} label={t("statsMetricSpeed")} value={view.avgWpm} suffix="wpm" detail={t("statsBestWpm", { n: view.bestWpm })} highlight />
           <MetricCard icon={<Target className="h-4 w-4" />} label={t("statsColAccuracy")} value={view.characterAccuracy} suffix="%" detail={t("statsAvgAccLabel", { n: view.avgAccuracy })} />
           <MetricCard icon={<Clock3 className="h-4 w-4" />} label={t("statsMetricTimeTyped")} value={formatDuration(view.filteredTimeTypingSeconds)} detail={t("statsCharsTyped", { n: view.filteredTypedChars.toLocaleString() })} />
           <MetricCard icon={<Flame className="h-4 w-4" />} label={t("statsMetricStreak")} value={view.currentStreak} suffix={t("statsSuffixDays")} detail={t("statsBestDays", { n: view.bestStreak })} />
           <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label={t("statsMetricConsistency")} value={view.consistency} suffix="%" detail={t("statsErrorsInScope", { n: view.filteredErrors })} />
         </section>
 
-        <Card className="border-border/80 bg-card shadow-sm">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">{t("statsActivity")}</h2>
-                <p className="text-sm text-muted-foreground">{t("statsActivityDesc")}</p>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <span>{view.heatmap.totalTests} {t("statsTests")}</span>
-                <span>{view.heatmap.activeDays} {t("statsActiveDays")}</span>
-                <span>{view.latestRun ? t("statsLatestRun", { time: formatRelativeTime(view.latestRun.at, i18n.language) }) : t("statsNoActivity")}</span>
-              </div>
+        <section className="space-y-4 rounded-2xl border border-border/40 bg-card/40 p-5 md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsActivity")}</p>
+              <h2 className="mt-1 text-lg font-bold tracking-tight">{t("statsActivityDesc")}</h2>
             </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-[hsl(var(--sub))]">
+              <span><b className="tabular-nums text-foreground">{view.heatmap.totalTests}</b> {t("statsTests")}</span>
+              <span className="text-border">·</span>
+              <span><b className="tabular-nums text-foreground">{view.heatmap.activeDays}</b> {t("statsActiveDays")}</span>
+              <span className="text-border">·</span>
+              <span>{view.latestRun ? t("statsLatestRun", { time: formatRelativeTime(view.latestRun.at, i18n.language) }) : t("statsNoActivity")}</span>
+            </div>
+          </div>
 
-            <div className="rounded-xl border border-border bg-background p-4">
-              <div className="mb-3 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+          <div>
+            <div className="mb-3 flex items-center justify-end gap-2 text-xs text-[hsl(var(--sub))]">
                 <span>{t("statsLess")}</span>
                 <div className="flex items-center gap-1">
                   {[0, 1, 2, 3, 4].map((level) => (
@@ -246,180 +260,174 @@ export default function UserStatsClient() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </section>
         {view.bestOverall?.keystrokeLog && view.bestOverall.promptText ? (
-          <Card className="border-border/80 bg-card shadow-sm">
-            <CardContent className="space-y-4 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <h2 className="text-lg font-semibold tracking-tight">{t("statsHeatmapTitle")}</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{t("statsHeatmapDesc")}</p>
-                </div>
+          <section className="space-y-4 rounded-2xl border border-border/40 bg-card/40 p-5 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">
+                  <Zap className="h-3 w-3 text-[hsl(var(--caret))]" />
+                  {t("statsHeatmapTitle")}
+                </p>
+                <h2 className="text-lg font-bold tracking-tight">{t("statsHeatmapDesc")}</h2>
               </div>
-              <WpmHeatmap
-                text={view.bestOverall.promptText}
-                keystrokeLog={view.bestOverall.keystrokeLog}
-                wpm={view.bestOverall.wpm}
-                accuracy={view.bestOverall.accuracy}
-              />
-            </CardContent>
-          </Card>
+            </div>
+            <WpmHeatmap
+              text={view.bestOverall.promptText}
+              keystrokeLog={view.bestOverall.keystrokeLog}
+              wpm={view.bestOverall.wpm}
+              accuracy={view.bestOverall.accuracy}
+            />
+          </section>
         ) : null}
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_320px]">
-          <Card className="border-border/80 bg-card shadow-sm">
-            <CardContent className="space-y-4 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold tracking-tight">{t("statsRecentPace")}</h2>
-                  <p className="text-sm text-muted-foreground">{t("statsRecentPaceDesc")}</p>
-                </div>
-                <span className="text-sm text-muted-foreground">{t("statsRunsShown", { n: view.chartRuns.length })}</span>
-              </div>
-
-              {view.hasFilteredRuns ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-border bg-background p-4">
-                    <div className="flex h-48 items-end gap-2">
-                      {view.chartRuns.map((run, index) => {
-                        const peak = view.bestWpm > 0 ? view.bestWpm : 1;
-                        const heightPercent = Math.max(10, Math.round((run.wpm / peak) * 100));
-                        return (
-                          <div key={`${run.id}-${index}`} className="group flex h-full flex-1 items-end">
-                            <div
-                              title={`${run.wpm} wpm / ${run.accuracy}% / ${run.durationSeconds}s`}
-                              className="w-full rounded-t-md bg-primary/80 transition group-hover:bg-primary"
-                              style={{ height: `${heightPercent}%` }}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <MiniMetric label={t("statsBestInScope")} value={view.bestScopeRun ? `${view.bestScopeRun.wpm} wpm` : "-"} />
-                    <MiniMetric label={t("statsCharacters")} value={view.filteredTypedChars.toLocaleString()} />
-                    <MiniMetric label={t("statsColErrors")} value={view.filteredErrors} />
-                  </div>
-                </div>
-              ) : (
-                <EmptyScopeState hasAnyRuns={view.hasAnyRuns} onResetScope={() => setRange("all")} />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/80 bg-card shadow-sm">
-            <CardContent className="space-y-4 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold tracking-tight">{t("statsBestByDur")}</h2>
-                  <p className="text-sm text-muted-foreground">{t("statsBestByDurDesc")}</p>
-                </div>
-                <Link href="/" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
-                  <ArrowLeft className="h-4 w-4" />
-                  {t("statsBtnBack")}
-                </Link>
-              </div>
-
-              <div className="space-y-3">
-                {view.durationCards.map(({ label, run }) => (
-                  <DurationCard key={label} label={label} run={run} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="border-border/80 bg-card shadow-sm">
-          <CardContent className="space-y-4 p-5">
+          <section className="space-y-4 rounded-2xl border border-border/40 bg-card/40 p-5 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">{t("statsRecentRuns")}</h2>
-                <p className="text-sm text-muted-foreground">{t("statsRecentRunsDesc", { scope: view.scopeLabel })}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsRecentPace")}</p>
+                <h2 className="mt-1 text-lg font-bold tracking-tight">{t("statsRecentPaceDesc")}</h2>
               </div>
-              <span className="text-sm text-muted-foreground">{t("statsShowingOf", { shown: view.displayRuns.length, total: view.filteredRunsDesc.length })}</span>
+              <span className="text-xs font-medium text-[hsl(var(--sub))]">{t("statsRunsShown", { n: view.chartRuns.length })}</span>
             </div>
 
             {view.hasFilteredRuns ? (
-              <>
-                <div className="grid gap-3 md:hidden">
-                  {view.displayRuns.map((run) => (
-                    <article key={run.id} className="rounded-xl border border-border bg-background p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-2xl font-semibold tabular-nums">{run.wpm}</p>
-                          <p className="text-xs text-muted-foreground">{t("statsColWpm")}</p>
-                        </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          <p>{formatRelativeTime(run.at, i18n.language)}</p>
-                          <p>{formatDate(run.at)}</p>
-                        </div>
+              <div className="space-y-4">
+                <div className="relative flex h-48 items-end gap-2 rounded-xl bg-background/40 p-3">
+                  {view.chartRuns.map((run, index) => {
+                    const peak = view.bestWpm > 0 ? view.bestWpm : 1;
+                    const heightPercent = Math.max(10, Math.round((run.wpm / peak) * 100));
+                    const isPeak = run.wpm === view.bestWpm && view.bestWpm > 0;
+                    return (
+                      <div key={`${run.id}-${index}`} className="group relative flex h-full flex-1 items-end">
+                        <div
+                          title={`${run.wpm} wpm / ${run.accuracy}% / ${run.durationSeconds}s`}
+                          className={`w-full rounded-t-md transition-all ${
+                            isPeak
+                              ? "bg-[hsl(var(--caret))] shadow-[0_0_18px_hsl(var(--caret)/0.35)]"
+                              : "bg-[hsl(var(--caret)/0.55)] group-hover:bg-[hsl(var(--caret))]"
+                          }`}
+                          style={{ height: `${heightPercent}%` }}
+                        />
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                        <MiniMetric label={t("statsColAccuracy")} value={`${run.accuracy}%`} />
-                        <MiniMetric label={t("statsColDifficulty")} value={run.difficulty} capitalize />
-                        <MiniMetric label={t("statsColErrors")} value={run.errors} />
-                        <MiniMetric label={t("statsColDuration")} value={`${run.durationSeconds}s`} />
-                      </div>
-                    </article>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                <div className="hidden overflow-auto rounded-xl border border-border md:block">
-                  <table className="w-full min-w-[780px] text-left text-sm">
-                    <thead className="bg-muted/30">
-                      <tr className="border-b border-border">
-                        <Th>{t("statsColWhen")}</Th>
-                        <Th align="right">{t("statsColWpm")}</Th>
-                        <Th align="right">{t("statsColAccuracy")}</Th>
-                        <Th align="right">{t("statsColErrors")}</Th>
-                        <Th>{t("statsColDifficulty")}</Th>
-                        <Th align="right">{t("statsColDuration")}</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {view.displayRuns.map((run) => (
-                        <tr key={run.id} className="border-b border-border last:border-0">
-                          <Td>
-                            <div>
-                              <p className="font-medium">{formatRelativeTime(run.at, i18n.language)}</p>
-                              <p className="text-xs text-muted-foreground">{formatDate(run.at)}</p>
-                            </div>
-                          </Td>
-                          <Td align="right" className="font-semibold tabular-nums">{run.wpm}</Td>
-                          <Td align="right" className="tabular-nums">{run.accuracy}%</Td>
-                          <Td align="right" className="tabular-nums">{run.errors}</Td>
-                          <Td><span className="capitalize text-muted-foreground">{run.difficulty}</span></Td>
-                          <Td align="right" className="tabular-nums">{run.durationSeconds}s</Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <MiniMetric label={t("statsBestInScope")} value={view.bestScopeRun ? `${view.bestScopeRun.wpm} wpm` : "-"} />
+                  <MiniMetric label={t("statsCharacters")} value={view.filteredTypedChars.toLocaleString()} />
+                  <MiniMetric label={t("statsColErrors")} value={view.filteredErrors} />
                 </div>
-              </>
+              </div>
             ) : (
               <EmptyScopeState hasAnyRuns={view.hasAnyRuns} onResetScope={() => setRange("all")} />
             )}
-          </CardContent>
-        </Card>
+          </section>
 
-        <Card className="border-border/80 bg-card shadow-sm">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <section className="space-y-4 rounded-2xl border border-border/40 bg-card/40 p-5 md:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsBestByDur")}</p>
+                <h2 className="mt-1 text-lg font-bold tracking-tight">{t("statsBestByDurDesc")}</h2>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {view.durationCards.map(({ label, run }) => (
+                <DurationCard key={label} label={label} run={run} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <section className="space-y-4 rounded-2xl border border-border/40 bg-card/40 p-5 md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-base font-semibold">{t("statsPrivacy")}</p>
-              <p className="text-sm text-muted-foreground">{t("statsPrivacyDesc")}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsRecentRuns")}</p>
+              <h2 className="mt-1 text-lg font-bold tracking-tight">{t("statsRecentRunsDesc", { scope: view.scopeLabel })}</h2>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <InfoPill label={t("statsStorage")} value={t("statsLocalOnly")} />
-              <InfoPill label={t("statsExportLabel")} value="JSON" />
-            </div>
-          </CardContent>
-        </Card>
+            <span className="text-xs font-medium text-[hsl(var(--sub))]">{t("statsShowingOf", { shown: view.displayRuns.length, total: view.filteredRunsDesc.length })}</span>
+          </div>
+
+          {view.hasFilteredRuns ? (
+            <>
+              <div className="grid gap-3 md:hidden">
+                {view.displayRuns.map((run) => (
+                  <article key={run.id} className="rounded-xl border border-border/40 bg-background/40 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-3xl font-bold tabular-nums text-[hsl(var(--caret))]">{run.wpm}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))]">{t("statsColWpm")}</p>
+                      </div>
+                      <div className="text-right text-xs text-[hsl(var(--sub))]">
+                        <p className="font-medium text-foreground">{formatRelativeTime(run.at, i18n.language)}</p>
+                        <p className="mt-0.5 tabular-nums">{formatDate(run.at)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                      <MiniMetric label={t("statsColAccuracy")} value={`${run.accuracy}%`} />
+                      <MiniMetric label={t("statsColDifficulty")} value={run.difficulty} capitalize />
+                      <MiniMetric label={t("statsColErrors")} value={run.errors} />
+                      <MiniMetric label={t("statsColDuration")} value={`${run.durationSeconds}s`} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-auto rounded-xl border border-border/40 md:block">
+                <table className="w-full min-w-[780px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border/40 bg-muted/20">
+                      <Th>{t("statsColWhen")}</Th>
+                      <Th align="right">{t("statsColWpm")}</Th>
+                      <Th align="right">{t("statsColAccuracy")}</Th>
+                      <Th align="right">{t("statsColErrors")}</Th>
+                      <Th>{t("statsColDifficulty")}</Th>
+                      <Th align="right">{t("statsColDuration")}</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {view.displayRuns.map((run) => {
+                      const isPeak = run.wpm === view.bestWpm && view.bestWpm > 0;
+                      return (
+                        <tr
+                          key={run.id}
+                          className="border-b border-border/30 transition-colors last:border-0 hover:bg-[hsl(var(--caret)/0.05)]"
+                        >
+                          <Td>
+                            <div>
+                              <p className="font-medium">{formatRelativeTime(run.at, i18n.language)}</p>
+                              <p className="text-xs text-[hsl(var(--sub))] tabular-nums">{formatDate(run.at)}</p>
+                            </div>
+                          </Td>
+                          <Td align="right" className={`font-bold tabular-nums ${isPeak ? "text-[hsl(var(--caret))]" : ""}`}>{run.wpm}</Td>
+                          <Td align="right" className="tabular-nums">{run.accuracy}%</Td>
+                          <Td align="right" className="tabular-nums text-[hsl(var(--sub))]">{run.errors}</Td>
+                          <Td><span className="capitalize text-[hsl(var(--sub))]">{run.difficulty}</span></Td>
+                          <Td align="right" className="tabular-nums text-[hsl(var(--sub))]">{run.durationSeconds}s</Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <EmptyScopeState hasAnyRuns={view.hasAnyRuns} onResetScope={() => setRange("all")} />
+          )}
+        </section>
+
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/30 p-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--sub))]">{t("statsPrivacy")}</p>
+            <p className="mt-1 text-sm text-foreground">{t("statsPrivacyDesc")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <InfoPill label={t("statsStorage")} value={t("statsLocalOnly")} />
+            <InfoPill label={t("statsExportLabel")} value="JSON" />
+          </div>
+        </section>
       </div>
 
       <SiteCreditsFooter className="mt-5" />
@@ -429,9 +437,9 @@ export default function UserStatsClient() {
 
 function InfoPill({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+    <span className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-3 py-1 text-xs backdrop-blur">
+      <span className="font-semibold uppercase tracking-[0.1em] text-[hsl(var(--sub))]">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
     </span>
   );
 }
@@ -441,36 +449,38 @@ function MetricCard({
   label,
   value,
   suffix,
-  detail
+  detail,
+  highlight = false
 }: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
   suffix?: string;
   detail: string;
+  highlight?: boolean;
 }) {
   return (
-    <Card className="border-border/80 bg-card shadow-sm">
-      <CardContent className="space-y-2 p-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="text-primary">{icon}</span>
-          <span>{label}</span>
-        </div>
-        <div className="flex items-end gap-2">
-          <p className="text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
-          {suffix ? <span className="pb-1 text-sm text-muted-foreground">{suffix}</span> : null}
-        </div>
-        <p className="text-sm text-muted-foreground">{detail}</p>
-      </CardContent>
-    </Card>
+    <div className="group relative rounded-xl border border-border/40 bg-card/50 p-4 transition-colors hover:border-[hsl(var(--caret)/0.35)] hover:bg-card/80">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))]">
+        <span className="text-[hsl(var(--caret))]">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div className="mt-3 flex items-end gap-2">
+        <p className={`text-4xl font-bold tracking-tight tabular-nums ${highlight ? "text-[hsl(var(--caret))]" : "text-foreground"}`}>
+          {value}
+        </p>
+        {suffix ? <span className="pb-1.5 text-xs font-medium uppercase tracking-wider text-[hsl(var(--sub))]">{suffix}</span> : null}
+      </div>
+      <p className="mt-2 text-xs text-[hsl(var(--sub))]">{detail}</p>
+    </div>
   );
 }
 
 function MiniMetric({ label, value, capitalize = false }: { label: string; value: ReactNode; capitalize?: boolean }) {
   return (
-    <div className="rounded-md border border-border bg-background px-3 py-2">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 font-medium ${capitalize ? "capitalize" : ""}`}>{value}</p>
+    <div className="rounded-lg border border-border/30 bg-background/30 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))]">{label}</p>
+      <p className={`mt-1 font-semibold tabular-nums ${capitalize ? "capitalize" : ""}`}>{value}</p>
     </div>
   );
 }
@@ -478,32 +488,38 @@ function MiniMetric({ label, value, capitalize = false }: { label: string; value
 function DurationCard({ label, run }: { label: string; run: StoredRun | null }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-xl border border-border bg-background p-4">
+    <div className={`rounded-xl border p-4 transition-colors ${run ? "border-[hsl(var(--caret)/0.25)] bg-[hsl(var(--caret)/0.04)]" : "border-border/30 bg-background/30"}`}>
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium">{label}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{run ? t("statsSavedPB") : t("statsNoResult")}</p>
+          <p className="text-sm font-bold">{label}</p>
+          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))]">
+            {run ? t("statsSavedPB") : t("statsNoResult")}
+          </p>
         </div>
-        {run ? <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">{t("statsPB")}</span> : null}
+        {run ? (
+          <span className="rounded-full bg-[hsl(var(--caret)/0.15)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-[hsl(var(--caret))]">
+            {t("statsPB")}
+          </span>
+        ) : null}
       </div>
 
       {run ? (
-        <div className="mt-4 space-y-3">
+        <div className="mt-3 space-y-3">
           <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-3xl font-semibold tracking-tight tabular-nums">{run.wpm}</p>
-              <p className="text-xs text-muted-foreground">{t("statsColWpm")}</p>
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-3xl font-bold tracking-tight tabular-nums text-[hsl(var(--caret))]">{run.wpm}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))]">{t("statsColWpm")}</p>
             </div>
-            <p className="text-sm font-medium tabular-nums">{run.accuracy}%</p>
+            <p className="text-sm font-semibold tabular-nums">{run.accuracy}%</p>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <MiniMetric label={t("statsColDifficulty")} value={run.difficulty} capitalize />
             <MiniMetric label={t("statsColErrors")} value={run.errors} />
           </div>
-          <p className="text-xs text-muted-foreground">{formatDate(run.at)}</p>
+          <p className="text-[11px] text-[hsl(var(--sub))] tabular-nums">{formatDate(run.at)}</p>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">{t("statsFinishRun")}</p>
+        <p className="mt-3 text-xs text-[hsl(var(--sub))]">{t("statsFinishRun")}</p>
       )}
     </div>
   );
@@ -542,7 +558,7 @@ function EmptyScopeState({ hasAnyRuns, onResetScope }: { hasAnyRuns: boolean; on
 
 function Th({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
   return (
-    <th className={`px-4 py-3 text-xs font-medium text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
+    <th className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--sub))] ${align === "right" ? "text-right" : "text-left"}`}>
       {children}
     </th>
   );
