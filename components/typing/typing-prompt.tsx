@@ -125,6 +125,7 @@ function PromptText({
         className={`relative transition-[filter,opacity] duration-200 ${
           showFocusHint ? "blur-[6px] opacity-30 saturate-50 select-none" : "blur-0 opacity-100 saturate-100"
         }`}
+        style={{ overflowWrap: "break-word", whiteSpace: "pre-wrap" }}
         aria-hidden={showFocusHint ? true : undefined}
       >
         {/* Smooth animated caret */}
@@ -181,7 +182,7 @@ function PromptText({
                   {"\u00B7"}
                 </span>
               )}
-              {character === " " ? "\u00A0" : character}
+              {character === " " ? " " : character}
             </span>
           );
         })}
