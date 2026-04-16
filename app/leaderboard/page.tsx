@@ -243,8 +243,14 @@ function PodiumColumn({
 
   return (
     <div className="flex flex-col items-center" style={cssVars as React.CSSProperties}>
-      {/* Trophy cup sitting on top */}
+      {/* Trophy cup sitting on top — champion gets a glow */}
       <div className="relative z-10 flex items-end justify-center">
+        {rank === 1 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -inset-x-6 -top-4 animate-pulse rounded-full bg-amber-400/20 blur-2xl motion-reduce:animate-none"
+          />
+        )}
         <TrophyCup theme={theme} rank={rank} />
       </div>
 
