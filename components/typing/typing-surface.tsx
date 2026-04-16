@@ -253,6 +253,8 @@ export default function TypingSurface() {
   // Ghost replay cursor — loaded from the PB run for the current duration.
   const [ghostLog, setGhostLog] = useState<KeystrokeEntry[] | null>(null);
   const [ghostWpm, setGhostWpm] = useState<number | null>(null);
+  // Capslock warning
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   useEffect(() => {
     setBaseContentSeed(getOrCreateContentSeed());
@@ -506,10 +508,25 @@ export default function TypingSurface() {
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   }, [focusTypingInput, handleExternalKeyDown, isCaptureFocused, isReplaying, isRunFinished, typingEnabled]);
 
+  // Capslock detection + Tab+Enter restart (MonkeyType-style)
+  useEffect(() => {
+    const handleKeyEvent = (event: KeyboardEvent) => {
+      setCapsLockOn(event.getModifierState("CapsLock"));
+    };
+    window.addEventListener("keydown", handleKeyEvent);
+    window.addEventListener("keyup", handleKeyEvent);
+    return () => {
+      window.removeEventListener("keydown", handleKeyEvent);
+      window.removeEventListener("keyup", handleKeyEvent);
+    };
+  }, []);
+
   useEffect(() => {
     if (!snapshot.metrics.finished) return;
     blurTypingInput();
   }, [blurTypingInput, snapshot.metrics.finished]);
+
+  // Tab or Enter restart effect is placed after handleRestart — see below.
 
   useEffect(() => {
     const tracker = replayCaptureRef.current;
@@ -661,6 +678,22 @@ export default function TypingSurface() {
     enabled: !showProfileDialog && !isSplashVisible && !isReplaying,
     onRestart: () => handleRestart(),
   });
+
+  // Tab or Enter to restart when finished (MonkeyType convention).
+  // Must be after handleRestart is defined to avoid TDZ.
+  const handleRestartRef = useRef(handleRestart);
+  handleRestartRef.current = handleRestart;
+  useEffect(() => {
+    if (!isRunFinished || isReplaying) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Tab" || e.key === "Enter") {
+        e.preventDefault();
+        handleRestartRef.current(e.key === "Enter" ? { regenerateText: true } : undefined);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isRunFinished, isReplaying]);
 
   const shufflePrompt = () => {
     resetRunUiState();
@@ -909,125 +942,163 @@ export default function TypingSurface() {
             </div>
           </header>
 
-          {/* ── TEST SETUP PANEL ── */}
+          {/* ── TEST SETUP PANEL — MonkeyType-style pill toggles, auto-hides during run ── */}
           <section
-            className="rounded-xl border border-border/60 bg-background/20 p-2.5 backdrop-blur"
+            className={`rounded-xl border border-border/40 bg-card/50 px-3 py-2.5 backdrop-blur transition-all duration-300 ${
+              snapshot.metrics.started && !isRunFinished
+                ? "pointer-events-none -translate-y-1 select-none opacity-0"
+                : "translate-y-0 opacity-100"
+            }`}
             aria-label={t("testControls")}
           >
-            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-              {/* Dropdowns */}
-              <div className="relative overflow-hidden rounded-lg border border-border/70 bg-background/50 px-2 py-1.5 shadow-sm">
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_50%,hsl(var(--primary)/0.09),transparent_38%)]"
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+              {/* Language */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[hsl(var(--sub))]">lang</span>
+                <Select
+                  className="shrink-0 max-w-[150px]"
+                  value={typingLanguageCode}
+                  aria-label="Typing language"
+                  options={typingLanguageOptions}
+                  onChange={(event) => {
+                    const nextLanguageCode = event.target.value;
+                    if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
+                    resetRunUiState();
+                    localStorage.setItem(STORAGE_KEYS.typingLanguage, nextLanguageCode);
+                    setTypingLanguageCode(nextLanguageCode);
+                    focusTypingSoon();
+                  }}
                 />
-                <div
-                  className="no-scrollbar relative flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden"
-                  tabIndex={0}
-                  aria-label="Typing option controls"
-                >
-                  <Select
-                    className="shrink-0 max-w-[170px]"
-                    value={typingLanguageCode}
-                    aria-label="Typing language"
-                    options={typingLanguageOptions}
-                    onChange={(event) => {
-                      const nextLanguageCode = event.target.value;
-                      if (!isSupportedTypingLanguageCode(nextLanguageCode)) return;
-                      resetRunUiState();
-                      localStorage.setItem(STORAGE_KEYS.typingLanguage, nextLanguageCode);
-                      setTypingLanguageCode(nextLanguageCode);
-                      focusTypingSoon();
-                    }}
-                  />
-                  <Select
-                    className="shrink-0 w-[88px]"
-                    value={String(textWordCount)}
-                    aria-label="Word count"
-                    options={textWordCountOptions.map((option) => ({ label: option.label, value: option.value }))}
-                    onChange={(event) => {
-                      const nextWordCount = Number(event.target.value);
+              </div>
+
+              <span className="h-4 w-px bg-border/40" aria-hidden />
+
+              {/* Word count pills */}
+              <div className="flex items-center gap-1">
+                {textWordCountOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      String(textWordCount) === opt.value
+                        ? "bg-[hsl(var(--caret))] text-[hsl(var(--background))]"
+                        : "text-[hsl(var(--sub))] hover:text-foreground"
+                    }`}
+                    onClick={() => {
+                      const nextWordCount = Number(opt.value);
                       if (!supportedTextWordCounts.has(nextWordCount)) return;
                       resetRunUiState();
                       localStorage.setItem(STORAGE_KEYS.typingWordCount, String(nextWordCount));
                       setTextWordCount(nextWordCount);
                       focusTypingSoon();
                     }}
-                  />
-                  <Select
-                    className="shrink-0"
-                    value={difficulty}
-                    aria-label="Difficulty"
-                    options={difficultyOptions}
-                    onChange={(event) => {
-                      if (!isDifficultyLevel(event.target.value)) return;
-                      resetRunUiState();
-                      localStorage.setItem(STORAGE_KEYS.typingDifficulty, event.target.value);
-                      setDifficulty(event.target.value);
-                      restart(duration);
-                      focusTypingSoon();
-                    }}
-                  />
-                  <Select
-                    className="shrink-0"
-                    value={String(duration)}
-                    aria-label="Duration"
-                    options={durationOptions.map((d) => ({ label: d.label, value: String(d.value) }))}
-                    onChange={(event) => {
-                      const next = Number(event.target.value) as DurationSeconds;
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <span className="h-4 w-px bg-border/40" aria-hidden />
+
+              {/* Duration pills */}
+              <div className="flex items-center gap-1">
+                {durationOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      duration === opt.value
+                        ? "bg-[hsl(var(--caret))] text-[hsl(var(--background))]"
+                        : "text-[hsl(var(--sub))] hover:text-foreground"
+                    }`}
+                    onClick={() => {
+                      const next = opt.value;
                       resetRunUiState();
                       localStorage.setItem(STORAGE_KEYS.typingDuration, String(next));
                       setDuration(next);
                       restart(next);
                       focusTypingSoon();
                     }}
-                  />
-                </div>
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                <div className="flex items-center gap-1">
-                  <Tooltip text={t("tooltipRestartSame")}>
-                    <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
-                      <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                      {t("btnRestart")}
-                    </Button>
-                  </Tooltip>
-                  <Tooltip text={t("tooltipNextContent")}>
-                    <Button variant="ghost" size="sm" onClick={() => handleRestart({ regenerateText: true })}>
-                      <ArrowRight className="mr-1 h-3.5 w-3.5" />
-                      {t("btnNext")}
-                    </Button>
-                  </Tooltip>
-                </div>
-                <span aria-hidden className="hidden h-5 w-px bg-border/60 sm:block" />
-                <Link
-                  href="/stats"
-                  className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 bg-background/70 px-3 text-sm font-medium transition hover:border-primary/40 hover:text-primary"
-                  aria-label={t("linkUserStats")}
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  {t("linkUserStats")}
-                </Link>
-                <Link
-                  href="/leaderboard"
-                  className="leaderboard-live-button group relative inline-flex h-8 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
-                  aria-label={t("linkLeaderboard")}
-                >
-                  <span aria-hidden className="leaderboard-live-aura absolute inset-0 rounded-md" />
-                  <span aria-hidden className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]" />
-                  <span aria-hidden className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-700 group-hover:translate-x-[290%] motion-safe:animate-[leaderboard-sheen_3.4s_ease-in-out_infinite]" />
-                  <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
-                  <Trophy className="relative h-4 w-4 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
-                  <span className="relative">{t("linkLeaderboard")}</span>
-                  <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
-                    {t("badgeLive")}
-                  </span>
-                </Link>
+              <span className="h-4 w-px bg-border/40" aria-hidden />
+
+              {/* Difficulty pills */}
+              <div className="flex items-center gap-1">
+                {difficultyOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      difficulty === opt.value
+                        ? "bg-[hsl(var(--caret))] text-[hsl(var(--background))]"
+                        : "text-[hsl(var(--sub))] hover:text-foreground"
+                    }`}
+                    onClick={() => {
+                      if (!isDifficultyLevel(opt.value)) return;
+                      resetRunUiState();
+                      localStorage.setItem(STORAGE_KEYS.typingDifficulty, opt.value);
+                      setDifficulty(opt.value);
+                      restart(duration);
+                      focusTypingSoon();
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
           </section>
+
+          {/* ── NAV ROW — links + actions, also hides during active run ── */}
+          <div
+            className={`flex flex-wrap items-center justify-center gap-2 transition-all duration-300 ${
+              snapshot.metrics.started && !isRunFinished
+                ? "pointer-events-none -translate-y-1 select-none opacity-0"
+                : "translate-y-0 opacity-100"
+            }`}
+          >
+            <Tooltip text={t("tooltipRestartSame")}>
+              <Button variant="ghost" size="sm" onClick={() => handleRestart()}>
+                <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                {t("btnRestart")}
+              </Button>
+            </Tooltip>
+            <Tooltip text={t("tooltipNextContent")}>
+              <Button variant="ghost" size="sm" onClick={() => handleRestart({ regenerateText: true })}>
+                <Shuffle className="mr-1 h-3.5 w-3.5" />
+                {t("btnNext")}
+              </Button>
+            </Tooltip>
+            <span aria-hidden className="h-5 w-px bg-border/40" />
+            <Link
+              href="/stats"
+              className="inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium text-[hsl(var(--sub))] transition hover:text-foreground"
+              aria-label={t("linkUserStats")}
+            >
+              <BarChart3 className="h-4 w-4" />
+              {t("linkUserStats")}
+            </Link>
+            <Link
+              href="/leaderboard"
+              className="leaderboard-live-button group relative inline-flex h-8 items-center justify-center gap-2 overflow-hidden rounded-md border border-primary/20 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-[leaderboard-button-pulse_2.8s_cubic-bezier(0.22,1,0.36,1)_infinite]"
+              aria-label={t("linkLeaderboard")}
+            >
+              <span aria-hidden className="leaderboard-live-aura absolute inset-0 rounded-md" />
+              <span aria-hidden className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_42%)]" />
+              <span aria-hidden className="absolute inset-y-0 left-[-40%] w-10 rotate-12 bg-white/20 blur-sm transition-transform duration-700 group-hover:translate-x-[290%] motion-safe:animate-[leaderboard-sheen_3.4s_ease-in-out_infinite]" />
+              <span aria-hidden className="leaderboard-live-orb relative h-2 w-2 rounded-full bg-white/95" />
+              <Trophy className="relative h-4 w-4 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+              <span className="relative">{t("linkLeaderboard")}</span>
+              <span className="leaderboard-live-badge relative hidden items-center rounded-full border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:inline-flex">
+                {t("badgeLive")}
+              </span>
+            </Link>
+          </div>
 
           {/* ── TYPING ARENA ── */}
           <div
@@ -1065,16 +1136,23 @@ export default function TypingSurface() {
                 transition: swipeState.direction ? undefined : "transform 0.25s ease-out",
               }}
             >
-              {/* Gaming progress bar — color shifts as test progresses */}
-              <div className="relative h-3 overflow-hidden rounded-full bg-muted/60">
+              {/* Capslock warning */}
+              {capsLockOn && (
                 <div
-                  className={`h-full rounded-full transition-all duration-150 ${
-                    promptProgress < 34
-                      ? "bg-primary"
-                      : promptProgress < 67
-                        ? "bg-amber-500"
-                        : "bg-rose-500"
-                  }`}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400"
+                  style={{ animation: "capslock-pulse 2s ease-in-out infinite" }}
+                >
+                  <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 17h.01M12 2l9 13H3L12 2z"/>
+                  </svg>
+                  CAPS LOCK is on
+                </div>
+              )}
+
+              {/* Slim progress bar */}
+              <div className="relative h-1.5 overflow-hidden rounded-full bg-muted/40">
+                <div
+                  className="progress-bar-shimmer relative h-full rounded-full bg-[hsl(var(--caret))] transition-all duration-150"
                   style={{ width: `${promptProgress}%` }}
                 />
               </div>
@@ -1138,24 +1216,27 @@ export default function TypingSurface() {
               </div>
             </div>
 
-            <div
-              className={`space-y-4 transition-[filter,opacity] duration-300 ${
-                isRunFinished ? "pointer-events-none select-none blur-[2px] opacity-60" : ""
-              }`}
-            >
+            {/* ── STATS: live during run, hero result when finished ── */}
+            {isRunFinished ? (
+              <div className="space-y-4">
+                <TypingStats metrics={snapshot.metrics} finished />
+                <div className="flex items-center justify-center gap-2 text-xs text-[hsl(var(--sub))]">
+                  <span>
+                    {saveStatus === "idle"
+                      ? t("saveWaiting")
+                      : saveStatus === "saving"
+                        ? t("saveSaving")
+                        : saveStatus === "saved"
+                          ? t("saveSaved")
+                          : t("saveError")}
+                  </span>
+                  <span className="text-border">·</span>
+                  <span>press <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">tab</kbd> to restart or <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">enter</kbd> for next</span>
+                </div>
+              </div>
+            ) : (
               <TypingStats metrics={snapshot.metrics} />
-
-              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-                {t("saveStatusLabel")}{" "}
-                {saveStatus === "idle"
-                  ? t("saveWaiting")
-                  : saveStatus === "saving"
-                    ? t("saveSaving")
-                    : saveStatus === "saved"
-                      ? t("saveSaved")
-                      : t("saveError")}
-              </p>
-            </div>
+            )}
 
             <section className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" aria-labelledby="lenuk-about-title">
               <article className="rounded-2xl border border-border/70 bg-background/35 p-4 shadow-sm backdrop-blur md:p-5">
