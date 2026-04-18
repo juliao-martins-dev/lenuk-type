@@ -217,7 +217,7 @@ export default function TypingSurface() {
   const [baseContentSeed, setBaseContentSeed] = useState(DEFAULT_SEED);
   const [typingLanguageCode, setTypingLanguageCode] = useState<SupportedLanguageCode>(DEFAULT_TYPING_LANGUAGE_CODE);
   const [textWordCount, setTextWordCount] = useState<number>(DEFAULT_TYPING_WORD_COUNT);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "offline">("idle");
   const [userName, setUserName] = useState("");
   const [userCountry, setUserCountry] = useState("");
   const [draftName, setDraftName] = useState("");
@@ -429,6 +429,13 @@ export default function TypingSurface() {
     // macrotask so the celebration UI renders before the main thread is blocked.
     const saveTimerId = window.setTimeout(() => {
       recordRunCompleted({ ...localPayload, keystrokeLog, promptText: currentText });
+      // Skip the network round-trip entirely when the browser reports offline.
+      // The run is already persisted to local stats above, so the user's PBs /
+      // history are safe — only the leaderboard sync is deferred.
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setSaveStatus("offline");
+        return;
+      }
       fetch("/api/results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -438,7 +445,13 @@ export default function TypingSurface() {
           if (!response.ok) throw new Error("Failed to save result");
           setSaveStatus("saved");
         })
-        .catch(() => setSaveStatus("error"));
+        .catch(() => {
+          setSaveStatus(
+            typeof navigator !== "undefined" && navigator.onLine === false
+              ? "offline"
+              : "error"
+          );
+        });
     }, 0);
 
     return () => window.clearTimeout(saveTimerId);
@@ -1228,7 +1241,9 @@ export default function TypingSurface() {
                         ? t("saveSaving")
                         : saveStatus === "saved"
                           ? t("saveSaved")
-                          : t("saveError")}
+                          : saveStatus === "offline"
+                            ? t("saveOffline")
+                            : t("saveError")}
                   </span>
                   <span className="text-border">·</span>
                   <span>press <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">tab</kbd> to restart or <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">enter</kbd> for next</span>

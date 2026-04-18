@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Typing test and typing speed test in English and Tetun",
     start_url: "/",
     display: "standalone",
-    background_color: "#071122",
-    theme_color: "#2ea8ff",
+    background_color: "#0B1220",
+    theme_color: "#00E5A8",
     lang: "en",
     icons: [
       {
