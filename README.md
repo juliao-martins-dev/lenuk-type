@@ -33,10 +33,10 @@ Three-winner podium on studio pillars — gold, silver, bronze trophies with met
 
 <div align="center">
   <a href="https://lenuktype.fun/leaderboard">
-    <img src="https://image.thum.io/get/width/1400/noanimate/https://lenuktype.fun/leaderboard" alt="Lenuk Type — live leaderboard podium" width="1000" />
+    <img src="public/leaderboard-podium.png" alt="Lenuk Type — live leaderboard podium with gold, silver, bronze trophy cups" width="900" />
   </a>
   <br /><br />
-  <sub><b>Live screenshot</b> — <a href="https://lenuktype.fun/leaderboard"><code>lenuktype.fun/leaderboard</code></a></sub>
+  <sub><b>Podium captured from</b> <a href="https://lenuktype.fun/leaderboard"><code>lenuktype.fun/leaderboard</code></a> — regenerate with <code>npx tsx scripts/capture-podium.ts</code></sub>
 </div>
 
 **On the board**

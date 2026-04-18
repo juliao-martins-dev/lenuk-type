@@ -352,7 +352,7 @@ function PodiumStage({
         : podiumItems;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-[linear-gradient(135deg,#f5f5f4_0%,#e7e5e4_55%,#d6d3d1_100%)] shadow-xl dark:bg-[linear-gradient(135deg,#1e293b_0%,#0f172a_55%,#020617_100%)]">
+    <div data-testid="podium-stage" className="relative overflow-hidden rounded-3xl border border-border/60 bg-[linear-gradient(135deg,#f5f5f4_0%,#e7e5e4_55%,#d6d3d1_100%)] shadow-xl dark:bg-[linear-gradient(135deg,#1e293b_0%,#0f172a_55%,#020617_100%)]">
       {/* Diagonal light rays — window blinds effect */}
       <div
         aria-hidden
