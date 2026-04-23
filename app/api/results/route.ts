@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createResultIdentityKey } from "@/lib/results-identity";
+import { checkResultPlausibility } from "@/lib/results-plausibility";
 import { getResultsFromSupabase, postResultToSupabase, type TypingResultRow } from "@/lib/supabase-results";
 
 export const runtime = "nodejs";
@@ -32,6 +33,22 @@ const MAX_LEADERBOARD_RESULTS = Math.max(
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate"
 } as const;
+
+// Per-userId submission cooldown. In-memory Map, shared across requests in the
+// same serverless instance. A determined attacker could still spread writes
+// across a cold-start pool, but this stops casual curl loops without adding a
+// dependency. Pair with the plausibility check for defense in depth.
+const SUBMIT_COOLDOWN_MS = 5000;
+const SUBMIT_TRACKER_MAX_SIZE = 2000;
+const lastSubmitByUserId = new Map<string, number>();
+
+function pruneSubmitTracker() {
+  if (lastSubmitByUserId.size < SUBMIT_TRACKER_MAX_SIZE) return;
+  const cutoff = Date.now() - SUBMIT_COOLDOWN_MS * 4;
+  for (const [userId, timestamp] of lastSubmitByUserId) {
+    if (timestamp < cutoff) lastSubmitByUserId.delete(userId);
+  }
+}
 
 type JsonRecord = Record<string, unknown>;
 
@@ -179,6 +196,48 @@ export async function POST(request: Request) {
     if (!row.userId || !row.promptId) {
       return NextResponse.json({ error: "Invalid identifiers" }, { status: 400, headers: NO_STORE_HEADERS });
     }
+
+    // Per-user cooldown: blocks trivial curl-loop flooding. Runs before the
+    // plausibility check since it's cheaper and bails without touching
+    // Supabase.
+    pruneSubmitTracker();
+    const now = Date.now();
+    const lastSubmitMs = lastSubmitByUserId.get(row.userId);
+    if (lastSubmitMs !== undefined && now - lastSubmitMs < SUBMIT_COOLDOWN_MS) {
+      const retryAfterMs = SUBMIT_COOLDOWN_MS - (now - lastSubmitMs);
+      return NextResponse.json(
+        { error: "Submitted too quickly", retryAfterMs },
+        {
+          status: 429,
+          headers: {
+            ...NO_STORE_HEADERS,
+            "Retry-After": String(Math.ceil(retryAfterMs / 1000))
+          }
+        }
+      );
+    }
+
+    // Plausibility: recompute wpm/accuracy from the character counts in
+    // metadata. Rejects hand-crafted POSTs whose numbers don't agree.
+    const metadata = isJsonRecord(payload.metadata) ? payload.metadata : {};
+    const plausibility = checkResultPlausibility({
+      wpm: row.wpm,
+      accuracy: row.accuracy,
+      durationSeconds: row.durationSeconds,
+      correctChars: toNumber(metadata.correctChars, -1),
+      typedChars: toNumber(metadata.typedChars, -1),
+      elapsedSeconds: toNumber(metadata.elapsed, -1)
+    });
+    if (!plausibility.ok) {
+      return NextResponse.json(
+        { error: "Result failed plausibility check", reason: plausibility.reason },
+        { status: 422, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    // Record the timestamp only after both checks pass so rejected attempts
+    // don't start the cooldown window for a legitimate retry.
+    lastSubmitByUserId.set(row.userId, now);
 
     const result = await postResultToSupabase(row);
     return NextResponse.json({ success: true, row, supabase: result }, { headers: NO_STORE_HEADERS });
