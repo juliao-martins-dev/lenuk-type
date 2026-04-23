@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, ArrowLeft, Medal, Search, Target, Trophy, User, X, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -458,10 +458,10 @@ export default function LeaderboardPage() {
     return map[option] ?? option.charAt(0).toUpperCase() + option.slice(1);
   };
 
-  const playerLabel = (item: LeaderboardItem): string => {
+  const playerLabel = useCallback((item: LeaderboardItem): string => {
     const name = item.userName?.trim();
     return name ? name : t("lbAnonymous");
-  };
+  }, [t]);
 
   const [items, setItems] = useState<LeaderboardItem[]>([]);
   const [status, setStatus] = useState<LeaderboardStatus>("loading");
@@ -603,7 +603,7 @@ export default function LeaderboardPage() {
       rank: index + 1,
       score: Math.round(rankScore(item) * 10) / 10
     }));
-  }, [items, query, difficultyFilter, sortBy]);
+  }, [items, query, difficultyFilter, sortBy, playerLabel]);
 
   const hasActiveFilters = query.trim().length > 0 || difficultyFilter !== "all" || sortBy !== "leaderboard";
   const podiumItems = rankedItems.slice(0, 3);

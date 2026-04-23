@@ -306,14 +306,10 @@ export class TypingEngine {
   // fixed-timestep loop. No DOM access. No rendering. Pure logic.
 
   /**
-   * One fixed-timestep update.
-   *
-   * @param _fixedDelta  Duration of this tick in ms (always TICK_DURATION_MS).
-   *                     Accepted as a parameter to match the standard game-loop
-   *                     signature; the timer uses wall-clock time instead so
-   *                     that WPM is device-independent.
+   * One fixed-timestep update. Delta is unused — the timer uses wall-clock
+   * time so that WPM is device-independent regardless of tick rate.
    */
-  private update(_fixedDelta: number): void {
+  private update(): void {
     this.processInputs();
     if (!this.finished) this.checkTimer();
     if (!this.finished) this.sampleWpm();
@@ -468,7 +464,7 @@ export class TypingEngine {
     // server without mocking. The rAF timer loop is simply skipped.
     if (typeof requestAnimationFrame === "undefined") {
       this.tickIndex += 1;
-      this.update(TICK_DURATION_MS);
+      this.update();
       if (!this.finished) {
         this.cachedSnapshot = this.buildSnapshot();
         this.notify();
@@ -519,7 +515,7 @@ export class TypingEngine {
     // regardless of how often rAF fires.
     while (this.accumulator >= TICK_DURATION_MS) {
       this.tickIndex += 1;
-      this.update(TICK_DURATION_MS);
+      this.update();
       this.accumulator -= TICK_DURATION_MS;
       if (this.finished) return; // endRun() emitted the final snapshot
     }

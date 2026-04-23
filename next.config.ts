@@ -6,8 +6,9 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
   // Disable SW in development so HMR and source maps aren't intercepted.
   disable: process.env.NODE_ENV !== "production",
-  // Let the SW take control of open tabs on update + reload in the page.
-  register: false, // we register manually from a client component
+  // Auto-register via @serwist/window — wires up update detection and the
+  // reloadOnOnline behavior we want. A manual navigator.serviceWorker.register
+  // call works for offline but skips those helpers.
   reloadOnOnline: true,
 });
 

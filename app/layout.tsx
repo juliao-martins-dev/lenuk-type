@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { siteAlternateNames, siteDescription, siteKeywords, siteName, siteOgImageAlt, siteTitle, siteUrl } from "@/lib/site";
 import { I18nProvider } from "@/components/providers/i18n-provider";
-import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import {
   RUNTIME_CONFIG_GLOBAL,
   getServerPublicConfig,
@@ -162,7 +161,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         <I18nProvider>{children}</I18nProvider>
-        <ServiceWorkerRegister />
         {/* Plausible Analytics — loads only when PLAUSIBLE_DOMAIN is set */}
         {plausibleDomain && (
           <script

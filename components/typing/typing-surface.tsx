@@ -455,7 +455,9 @@ export default function TypingSurface() {
     }, 0);
 
     return () => window.clearTimeout(saveTimerId);
-  }, [difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, isRunFinished, promptId, textWordCount, userCountry, userName]);
+    // auth.user?.id and currentText are read above; re-running the effect is
+    // harmless because submittedRef gates it to once per run.
+  }, [auth.user?.id, currentText, difficulty, duration, generatedTextContent.languageCode, generatedTextContent.seed, generatedTextContent.tokens.length, isRunFinished, promptId, textWordCount, userCountry, userName]);
 
   useEffect(() => {
     return () => {
